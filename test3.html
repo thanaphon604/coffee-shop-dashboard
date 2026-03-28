@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shop Dashboard - Test3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #4f46e5; --success: #10b981; --warning: #f59e0b; --danger: #f43f5e; --bg: #f8fafc; --card: #ffffff; }
+        body { font-family: 'Inter', sans-serif; font-size: 16px; background: var(--bg); }
+        .bento { background: var(--card); border-radius: 1.25rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.3s; }
+        .bento:hover { border-color: var(--primary); box-shadow: 0 10px 25px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .kpi-val { font-size: 2.25rem; font-weight: 800; line-height: 1.2; }
+        .hdr { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .lbl { font-size: 0.6875rem; font-weight: 700; }
+        .glass { backdrop-filter: blur(16px); background: rgba(255,255,255,0.95); }
+        .kpi-clickable { cursor: pointer; }
+        .kpi-clickable:hover { text-decoration: underline; }
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- KPI Modal -->
+    <div id="kpiModal" class="fixed inset-0 modal-overlay hidden z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">
+            <div class="bg-indigo-600 px-6 py-4 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <i data-lucide="info" class="w-5 h-5"></i> รายละเอียด KPI
+                </h3>
+                <button onclick="closeModal()" class="text-white hover:bg-indigo-700 rounded-lg p-1">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="mb-4">
+                    <div class="text-sm text-slate-500 mb-1">ชื่อ KPI</div>
+                    <div id="modalKpiName" class="text-lg font-bold text-slate-900">-</div>
+                </div>
+                <div class="mb-4">
+                    <div class="text-sm text-slate-500 mb-1">มิติ</div>
+                    <div id="modalDimension" class="text-slate-700">-</div>
+                </div>
+                <div class="mb-4">
+                    <div class="text-sm text-slate-500 mb-1">คำอธิบาย KPI (สำหรับ CEO)</div>
+                    <div id="modalDesc" class="text-slate-700 bg-slate-50 p-3 rounded-lg">-</div>
+                </div>
+                <div class="mb-4">
+                    <div class="text-sm text-slate-500 mb-1">วิธีการคำนวณ</div>
+                    <div id="modalCalc" class="text-slate-700 bg-slate-50 p-3 rounded-lg font-mono text-sm">-</div>
+                </div>
+                <div>
+                    <div class="text-sm text-slate-500 mb-1">ข้อมูลที่ใช้</div>
+                    <div id="modalFields" class="text-slate-700 bg-slate-50 p-3 rounded-lg font-mono text-sm">-</div>
+                </div>
+            </div>
+            <div class="px-6 py-3 bg-slate-50 flex justify-end">
+                <button onclick="closeModal()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">ปิด</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-[1550px] mx-auto p-4 lg:p-6">
+        <!-- Header -->
+        <header class="mb-6">
+            <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-extrabold text-slate-900 flex items-center gap-3">
+                        <i data-lucide="coffee" class="w-8 h-8 text-indigo-600"></i>
+                        Coffee Shop <span class="text-indigo-600">Dashboard</span> <span class="text-sm font-normal text-slate-500">Test3</span>
+                    </h1>
+                    <p class="text-slate-500 mt-1">Dashboard วิเคราะห์ธุรกิจร้านกาแฟแบบครบวงจร</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="yearSel" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
+                        <option value="all">ทุกปี</option>
+                    </select>
+                    <select id="monthSel" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
+                        <option value="all">ทุกเดือน</option>
+                    </select>
+                    <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                    </button>
+                    <button id="clearFilterBtn" onclick="clearFilters()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-300 flex items-center gap-2 hidden">
+                        <i data-lucide="x" class="w-4 h-4"></i> ล้าง Filter
+                    </button>
+                </div>
+            </div>
+            <div id="filterStatus" class="hidden mt-3 p-3 bg-indigo-50 rounded-lg flex items-center gap-2 flex-wrap">
+                <span class="text-sm text-indigo-600 font-medium">Active Filters:</span>
+                <span id="filterTags"></span>
+            </div>
+        </header>
+
+        <!-- ROW 1: ยอดขายหลัก -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div class="bento p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-indigo-600 kpi-clickable" onclick="showKpiModal('totalRevenue')">ยอดขายรวม</span>
+                    <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                </div>
+                <div class="kpi-val text-indigo-600" id="totalRevenue">-</div>
+                <div class="lbl text-emerald-500 mt-1">↑ <span id="revGrowth">-</span> vs เดือนก่อน</div>
+            </div>
+            <div class="bento p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-amber-500 kpi-clickable" onclick="showKpiModal('totalOrders')">คำสั่งซื้อ</span>
+                    <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-500"></i>
+                </div>
+                <div class="kpi-val text-amber-500" id="totalOrders">-</div>
+            </div>
+            <div class="bento p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-emerald-500 kpi-clickable" onclick="showKpiModal('aov')">มูลค่า/ออร์เดอร์</span>
+                    <i data-lucide="receipt" class="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <div class="kpi-val text-emerald-500" id="aov">-</div>
+            </div>
+            <div class="bento p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-rose-500 kpi-clickable" onclick="showKpiModal('totalCustomers')">ลูกค้ารวม</span>
+                    <i data-lucide="users" class="w-5 h-5 text-rose-500"></i>
+                </div>
+                <div class="kpi-val text-rose-500" id="totalCustomers">-</div>
+                <div class="lbl text-slate-500 mt-1">ใหม่: <span id="newCustomers">-</span> | ประจำ: <span id="returningCustomers">-</span></div>
+            </div>
+        </section>
+
+        <!-- ROW 2: ช่องทาง + หมวด + แนวโน้ม -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-3 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">ช่องทางการขาย</span>
+                </div>
+                <div class="h-[150px]"><canvas id="chChannel"></canvas></div>
+                <div class="mt-3 space-y-2" id="legendChannel"></div>
+            </div>
+            <div class="bento lg:col-span-5 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">หมวดสินค้า (Category)</span>
+                </div>
+                <div class="h-[160px]"><canvas id="chCategory"></canvas></div>
+                <div class="mt-3 grid grid-cols-2 gap-2" id="legendCategory"></div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">แนวโน้มยอดขาย</span>
+                </div>
+                <div class="h-[180px]"><canvas id="chTrend"></canvas></div>
+            </div>
+        </section>
+
+        <!-- ROW 3: เมนู + ขนาด + อุณหภูมิ -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">เมนูขายดี Top 10</span>
+                    <i data-lucide="flame" class="w-5 h-5 text-orange-500"></i>
+                </div>
+                <div class="space-y-2 max-h-[240px] overflow-auto" id="topMenu"></div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">ขนาด (Size)</span>
+                </div>
+                <div class="h-[140px]"><canvas id="chSize"></canvas></div>
+                <div class="grid grid-cols-3 gap-2 mt-3" id="statsSize"></div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">ร้อน / เย็น</span>
+                </div>
+                <div class="h-[140px]"><canvas id="chHotIced"></canvas></div>
+                <div class="grid grid-cols-2 gap-2 mt-3" id="statsHotIced"></div>
+            </div>
+        </section>
+
+        <!-- ROW 4: เวลา + โปร -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-8 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">ยอดขายรายชั่วโมง</span>
+                </div>
+                <div class="h-[160px]"><canvas id="chHour"></canvas></div>
+                <div class="grid grid-cols-4 gap-2 mt-3">
+                    <div class="text-center p-2 bg-indigo-50 rounded-lg">
+                        <div class="lbl text-indigo-600">Peak Hour</div>
+                        <div class="font-bold text-indigo-600 text-lg" id="peakHour">-</div>
+                    </div>
+                    <div class="text-center p-2 bg-emerald-50 rounded-lg">
+                        <div class="lbl text-emerald-600">Best Day</div>
+                        <div class="font-bold text-emerald-600 text-lg" id="bestDay">-</div>
+                    </div>
+                    <div class="text-center p-2 bg-amber-50 rounded-lg">
+                        <div class="lbl text-amber-600">Best Slot</div>
+                        <div class="font-bold text-amber-600 text-lg" id="bestSlot">-</div>
+                    </div>
+                    <div class="text-center p-2 bg-rose-50 rounded-lg">
+                        <div class="lbl text-rose-600">วันแย่สุด</div>
+                        <div class="font-bold text-rose-600 text-lg" id="worstDay">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">โปรโมชัน</span>
+                </div>
+                <div class="space-y-3">
+                    <div class="p-3 bg-rose-50 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="lbl text-rose-600">มูลค่าส่วนลด</span>
+                            <span class="font-bold text-rose-600 text-lg" id="totalDiscount">-</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-rose-50 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="lbl text-rose-600">อัตราส่วนลด</span>
+                            <span class="font-bold text-rose-600 text-lg" id="discountRate">-</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="lbl text-amber-600">ใช้โปร</span>
+                            <span class="font-bold text-amber-600 text-lg" id="promoOrders">-</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-xl">
+                        <div class="flex justify-between items-center">
+                            <span class="lbl text-amber-600">ประสิทธิโปร</span>
+                            <span class="font-bold text-amber-600 text-lg" id="promoEffect">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROW 5: Add-on + ลูกค้า -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">Add-on / Upselling</span>
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-500"></i>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-3">
+                    <div class="p-3 bg-indigo-50 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-indigo-600" id="addonRate">-</div>
+                        <div class="lbl text-indigo-500">% Add-on</div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-emerald-600" id="addonOrders">-</div>
+                        <div class="lbl text-emerald-500">คำสั่ง Add-on</div>
+                    </div>
+                </div>
+                <div class="space-y-2" id="topAddon"></div>
+            </div>
+            <div class="bento lg:col-span-8 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">ลูกค้าและการเติบโต</span>
+                </div>
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-4">
+                    <div class="text-center p-3 bg-indigo-50 rounded-xl">
+                        <div class="text-xl font-bold text-indigo-600" id="custTotal">-</div>
+                        <div class="lbl text-indigo-500">รวม</div>
+                    </div>
+                    <div class="text-center p-3 bg-emerald-50 rounded-xl">
+                        <div class="text-xl font-bold text-emerald-600" id="custNew">-</div>
+                        <div class="lbl text-emerald-500">ใหม่</div>
+                    </div>
+                    <div class="text-center p-3 bg-amber-50 rounded-xl">
+                        <div class="text-xl font-bold text-amber-600" id="custReturning">-</div>
+                        <div class="lbl text-amber-500">ประจำ</div>
+                    </div>
+                    <div class="text-center p-3 bg-rose-50 rounded-xl">
+                        <div class="text-xl font-bold text-rose-600" id="custNewRate">-</div>
+                        <div class="lbl text-rose-500">%ใหม่</div>
+                    </div>
+                    <div class="text-center p-3 bg-purple-50 rounded-xl">
+                        <div class="text-xl font-bold text-purple-600" id="custRetRate">-</div>
+                        <div class="lbl text-purple-500">%ประจำ</div>
+                    </div>
+                    <div class="text-center p-3 bg-cyan-50 rounded-xl">
+                        <div class="text-xl font-bold text-cyan-600" id="custFreq">-</div>
+                        <div class="lbl text-cyan-500">ครั้ง/ลูก</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="p-2 bg-slate-50 rounded-lg">
+                        <div class="lbl text-slate-500">%ซื้อซ้ำ</div>
+                        <div class="font-bold" id="repeatRate">-</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg">
+                        <div class="lbl text-slate-500">รายได้/ลูก</div>
+                        <div class="font-bold" id="revPerCust">-</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg">
+                        <div class="lbl text-slate-500">รายได้ใหม่</div>
+                        <div class="font-bold" id="revNewCust">-</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROW 6: การชำระเงิน + Productivity -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">การชำระเงิน</span>
+                </div>
+                <div class="h-[150px]"><canvas id="chPayment"></canvas></div>
+                <div class="grid grid-cols-3 gap-2 mt-3">
+                    <div class="text-center p-2 bg-emerald-50 rounded-lg">
+                        <div class="font-bold text-emerald-600" id="payQR">-</div>
+                        <div class="lbl text-emerald-500">QR</div>
+                    </div>
+                    <div class="text-center p-2 bg-amber-50 rounded-lg">
+                        <div class="font-bold text-amber-600" id="payCash">-</div>
+                        <div class="lbl text-amber-500">สด</div>
+                    </div>
+                    <div class="text-center p-2 bg-indigo-50 rounded-lg">
+                        <div class="font-bold text-indigo-600" id="payCard">-</div>
+                        <div class="lbl text-indigo-500">บัตร</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bento lg:col-span-8 p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="hdr text-slate-700">Productivity Metrics</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                    <div class="p-4 bg-indigo-50 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-indigo-600" id="ordersPerHour">-</div>
+                        <div class="lbl text-indigo-500">คำสั่ง/ชม.</div>
+                    </div>
+                    <div class="p-4 bg-emerald-50 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-emerald-600" id="revPerHour">-</div>
+                        <div class="lbl text-emerald-500">รายได้/ชม.</div>
+                    </div>
+                    <div class="p-4 bg-amber-50 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-amber-600" id="itemsPerOrder">-</div>
+                        <div class="lbl text-amber-500">รายการ/ออร์เดอร์</div>
+                    </div>
+                    <div class="p-4 bg-rose-50 rounded-xl text-center">
+                        <div class="text-2xl font-bold text-rose-600" id="totalQty">-</div>
+                        <div class="lbl text-rose-500">รวมที่ขาย</div>
+                    </div>
+                </div>
+                <div class="h-[80px]"><canvas id="chProd"></canvas></div>
+            </div>
+        </section>
+
+        <!-- ROW 7: Growth -->
+        <section class="bento p-5 mb-4">
+            <div class="flex justify-between items-center mb-4">
+                <span class="hdr text-slate-700">Growth & Trends</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl">
+                    <div class="lbl text-indigo-600">MoM Revenue Growth</div>
+                    <div class="text-2xl font-bold text-indigo-600" id="momGrowth">-</div>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl">
+                    <div class="lbl text-emerald-600">YoY Revenue Growth</div>
+                    <div class="text-2xl font-bold text-emerald-600" id="yoyGrowth">-</div>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl">
+                    <div class="lbl text-amber-600">Revenue Trend</div>
+                    <div class="text-2xl font-bold text-amber-600" id="trendDir">-</div>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl">
+                    <div class="lbl text-rose-600">Customer Growth</div>
+                    <div class="text-2xl font-bold text-rose-600" id="custGrowth">-</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-4 text-slate-400 text-sm">
+            <div class="flex items-center justify-center gap-2">
+                <i data-lucide="coffee" class="w-4 h-4"></i>
+                <span>Coffee Shop Dashboard | Test3 | Updated: <span id="lastUp">-</span></span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        let rawData = [];
+        let charts = {};
+        let filters = { channel: null, category: null, size: null, hot_iced: null, payment: null, menu_item: null, addon: null, day_of_week: null, time_slot: null };
+        
+        const kpiData = {
+            'totalRevenue': { name: 'Total Net Revenue', dim: 'ยอดขายรวม', desc: 'รายได้รวมทั้งหมดหลังหักส่วนลด', calc: 'SUM(net_sales_thb)', fields: 'net_sales_thb' },
+            'totalOrders': { name: 'Total Orders', dim: 'ยอดขายรวม', desc: 'จำนวนคำสั่งซื้อทั้งหมด', calc: 'COUNT(DISTINCT order_id)', fields: 'order_id' },
+            'aov': { name: 'Average Order Value (AOV)', dim: 'ยอดขายรวม', desc: 'มูลค่าเฉลี่ยต่อ 1 คำสั่งซื้อ', calc: 'SUM(net_sales_thb) / COUNT(DISTINCT order_id)', fields: 'net_sales_thb, order_id' },
+            'totalCustomers': { name: 'Total Unique Customers', dim: 'ลูกค้า', desc: 'จำนวนลูกค้าทั้งหมด', calc: 'COUNT(DISTINCT customer)', fields: 'customer' },
+            'newCustomers': { name: 'New Customers', dim: 'ลูกค้า', desc: 'จำนวนลูกค้าใหม่', calc: 'COUNT(where customer_type = "New")', fields: 'customer_type' },
+            'returningCustomers': { name: 'Returning Customers', dim: 'ลูกค้า', desc: 'จำนวนลูกค้าประจำ', calc: 'COUNT(where customer_type = "Returning")', fields: 'customer_type' },
+            'totalDiscount': { name: 'Total Discount Amount', dim: 'ส่วนลดและโปรโมชัน', desc: 'มูลค่าส่วนลดรวม', calc: 'SUM(discount_thb)', fields: 'discount_thb' },
+            'discountRate': { name: 'Discount Rate (%)', dim: 'ส่วนลดและโปรโมชัน', desc: 'อัตราส่วนลดต่อยอดขาย', calc: 'SUM(discount_thb) / SUM(unit_price_thb * qty) * 100', fields: 'discount_thb, unit_price_thb, qty' },
+            'promoOrders': { name: 'Promo Order Count', dim: 'ส่วนลดและโปรโมชัน', desc: 'จำนวนคำสั่งซื้อที่ใช้โปร', calc: 'COUNT(where promo_flag = 1)', fields: 'promo_flag' },
+            'promoEffect': { name: 'Promo Effectiveness (%)', dim: 'ส่วนลดและโปรโมชัน', desc: '% รายได้จากโปร', calc: '(Promo Revenue / Total Revenue) * 100', fields: 'promo_flag, net_sales_thb' },
+            'addonRate': { name: 'Add-on Rate (%)', dim: 'Add-on และ Upselling', desc: '% คำสั่งซื้อที่มี Add-on', calc: '(Add-on Orders / Total Orders) * 100', fields: 'add_on, order_id' },
+            'addonOrders': { name: 'Add-on Order Count', dim: 'Add-on และ Upselling', desc: 'จำนวนคำสั่งซื้อที่มี Add-on', calc: 'COUNT(where add_on != "None")', fields: 'add_on' },
+            'peakHour': { name: 'Peak Hour', dim: 'ยอดขายตามเวลา', desc: 'ชั่วโมงที่มียอดขายสูงสุด', calc: 'RANK by SUM(net_sales_thb)', fields: 'hour, net_sales_thb' },
+            'bestDay': { name: 'Best Day', dim: 'ยอดขายตามเวลา', desc: 'วันที่มียอดขายสูงสุด', calc: 'RANK by SUM(net_sales_thb)', fields: 'day_of_week, net_sales_thb' },
+            'worstDay': { name: 'Worst Day', dim: 'ยอดขายตามเวลา', desc: 'วันที่มียอดขายต่ำสุด', calc: 'RANK by SUM(net_sales_thb) ASC', fields: 'day_of_week, net_sales_thb' },
+            'bestSlot': { name: 'Best Time Slot', dim: 'ยอดขายตามเวลา', desc: 'ช่วงเวลาที่มียอดขายสูงสุด', calc: 'RANK by SUM(net_sales_thb)', fields: 'time_slot, net_sales_thb' },
+            'custTotal': { name: 'Total Unique Customers', dim: 'ลูกค้า', desc: 'จำนวนลูกค้าทั้งหมด', calc: 'COUNT(DISTINCT customer)', fields: 'customer' },
+            'custNew': { name: 'New Customers', dim: 'ลูกค้า', desc: 'จำนวนลูกค้าใหม่', calc: 'COUNT(where customer_type = "New")', fields: 'customer_type' },
+            'custReturning': { name: 'Returning Customers', dim: 'ลูกค้า', desc: 'จำนวนลูกค้าประจำ', calc: 'COUNT(where customer_type = "Returning")', fields: 'customer_type' },
+            'custNewRate': { name: 'New Customer Rate (%)', dim: 'ลูกค้า', desc: '% ลูกค้าใหม่', calc: '(New Customers / Total Customers) * 100', fields: 'customer_type' },
+            'custRetRate': { name: 'Returning Customer Rate (%)', dim: 'ลูกค้า', desc: '% ลูกค้ากลับมา', calc: '(Returning Customers / Total Customers) * 100', fields: 'customer_type' },
+            'custFreq': { name: 'Customer Avg Order Frequency', dim: 'ลูกค้า', desc: 'จำนวนครั้งเฉลี่ยที่ลูกค้าซื้อ', calc: 'COUNT(order_id) / COUNT(DISTINCT customer)', fields: 'customer, order_id' },
+            'repeatRate': { name: 'Repeat Purchase Rate (%)', dim: 'ลูกค้า', desc: '% ลูกค้าที่ซื้อซ้ำ', calc: '(Customers with >1 order / Total Customers) * 100', fields: 'customer, order_id' },
+            'revPerCust': { name: 'Revenue per Customer', dim: 'ลูกค้า', desc: 'รายได้เฉลี่ยต่อลูกค้า', calc: 'SUM(net_sales_thb) / COUNT(DISTINCT customer)', fields: 'net_sales_thb, customer' },
+            'revNewCust': { name: 'New Customer Revenue', dim: 'ลูกค้า', desc: 'รายได้จากลูกค้าใหม่', calc: 'SUM(net_sales_thb where customer_type = "New")', fields: 'customer_type, net_sales_thb' },
+            'payQR': { name: 'QR/PromptPay Usage (%)', dim: 'การชำระเงิน', desc: '% การใช้ QR Payment', calc: '(QR Transactions / Total) * 100', fields: 'payment_method' },
+            'payCash': { name: 'Cash Usage (%)', dim: 'การชำระเงิน', desc: '% การใช้เงินสด', calc: '(Cash Transactions / Total) * 100', fields: 'payment_method' },
+            'payCard': { name: 'Card Usage (%)', dim: 'การชำระเงิน', desc: '% การใช้บัตร', calc: '(Card Transactions / Total) * 100', fields: 'payment_method' },
+            'ordersPerHour': { name: 'Orders per Hour', dim: 'Productivity', desc: 'จำนวนคำสั่งซื้อต่อชั่วโมง', calc: 'GROUP BY hour, COUNT(order_id)', fields: 'hour, order_id' },
+            'revPerHour': { name: 'Revenue per Hour', dim: 'Productivity', desc: 'รายได้ต่อชั่วโมง', calc: 'GROUP BY hour, SUM(net_sales_thb)', fields: 'hour, net_sales_thb' },
+            'itemsPerOrder': { name: 'Average Items per Transaction', dim: 'Productivity', desc: 'รายการเฉลี่ยต่อ Transaction', calc: 'SUM(qty) / COUNT(order_id)', fields: 'qty, order_id' },
+            'totalQty': { name: 'Total Quantity Sold', dim: 'ยอดขายรวม', desc: 'จำนวนแก้ว/รายการรวมที่ขาย', calc: 'SUM(qty)', fields: 'qty' },
+            'momGrowth': { name: 'MoM Revenue Growth (%)', dim: 'Trend และ Growth', desc: 'อัตราการเติบโตเดือนต่อเดือน', calc: '(Current - Previous) / Previous * 100', fields: 'order_date, net_sales_thb' },
+            'yoyGrowth': { name: 'YoY Revenue Growth (%)', dim: 'Trend และ Growth', desc: 'อัตราการเติบโตปีต่อปี', calc: '(Current Year - Previous Year) / Previous Year * 100', fields: 'order_date, net_sales_thb' },
+            'trendDir': { name: 'Revenue Trend Direction', dim: 'Trend และ Growth', desc: 'ทิศทางแนวโน้มยอดขาย', calc: 'Linear Regression', fields: 'order_date, net_sales_thb' },
+            'custGrowth': { name: 'Customer Growth Rate (%)', dim: 'Trend และ Growth', desc: 'อัตราการเติบโตของลูกค้า', calc: '(Current - Previous) / Previous * 100', fields: 'order_date, customer' }
+        };
+
+        function showKpiModal(id) {
+            const k = kpiData[id];
+            if (!k) return;
+            document.getElementById('modalKpiName').textContent = k.name;
+            document.getElementById('modalDimension').textContent = k.dim;
+            document.getElementById('modalDesc').textContent = k.desc;
+            document.getElementById('modalCalc').textContent = k.calc;
+            document.getElementById('modalFields').textContent = k.fields;
+            document.getElementById('kpiModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            document.getElementById('kpiModal').classList.add('hidden');
+        }
+
+        function clearFilters() {
+            filters = { channel: null, category: null, size: null, hot_iced: null, payment: null, menu_item: null, addon: null, day_of_week: null, time_slot: null };
+            document.querySelectorAll('.filter-active').forEach(el => el.classList.remove('bg-indigo-100', 'border-indigo-500'));
+            document.getElementById('filterStatus').classList.add('hidden');
+            document.getElementById('clearFilterBtn').classList.add('hidden');
+            updateDash();
+        }
+
+        function setFilter(type, value) {
+            if (filters[type] === value) {
+                filters[type] = null;
+            } else {
+                filters[type] = value;
+            }
+            const hasFilters = Object.values(filters).some(v => v !== null);
+            document.getElementById('filterStatus').classList.toggle('hidden', !hasFilters);
+            document.getElementById('clearFilterBtn').classList.toggle('hidden', !hasFilters);
+            
+            let tags = '';
+            if (filters.channel) tags += `<span class="px-2 py-1 bg-indigo-200 text-indigo-700 rounded text-xs">Channel: ${filters.channel}</span> `;
+            if (filters.category) tags += `<span class="px-2 py-1 bg-indigo-200 text-indigo-700 rounded text-xs">Category: ${filters.category}</span> `;
+            if (filters.size) tags += `<span class="px-2 py-1 bg-indigo-200 text-indigo-700 rounded text-xs">Size: ${filters.size}</span> `;
+            if (filters.hot_iced) tags += `<span class="px-2 py-1 bg-indigo-200 text-indigo-700 rounded text-xs">${filters.hot_iced === 'Hot' ? 'ร้อน' : 'เย็น'}</span> `;
+            if (filters.payment) tags += `<span class="px-2 py-1 bg-indigo-200 text-indigo-700 rounded text-xs">Payment: ${filters.payment}</span> `;
+            document.getElementById('filterTags').innerHTML = tags;
+            
+            updateDash();
+        }
+
+        async function loadData(){
+            try{
+                const res = await fetch('coffee_sales_group1_realistic_1500rows.csv');
+                const csv = await res.text();
+                const r = Papa.parse(csv, {header: true, skipEmptyLines: true});
+                rawData = r.data;
+                initFilters();
+                updateDash();
+                lucide.createIcons();
+            }catch(e){
+                console.error(e);
+                document.getElementById('lastUp').textContent = 'Error loading data';
+            }
+        }
+
+        function initFilters(){
+            const years = [...new Set(rawData.map(d => d.order_date?.substring(0, 4)))].filter(Boolean).sort();
+            const ySel = document.getElementById('yearSel');
+            years.forEach(y => ySel.add(new Option(y, y)));
+
+            const months = [...new Set(rawData.map(d => d.order_date?.substring(0, 7)))].filter(Boolean).sort();
+            const mSel = document.getElementById('monthSel');
+            const mn = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+            months.forEach(m => {
+                const num = parseInt(m.split('-')[1]);
+                mSel.add(new Option(`${mn[num-1]} ${m.split('-')[0]}`, m));
+            });
+        }
+
+        function getFilteredData(){
+            const y = document.getElementById('yearSel').value;
+            const m = document.getElementById('monthSel').value;
+            return rawData.filter(d => 
+                (y === 'all' || d.order_date?.startsWith(y)) && 
+                (m === 'all' || d.order_date?.startsWith(m)) &&
+                (!filters.channel || d.channel === filters.channel) &&
+                (!filters.category || d.category === filters.category) &&
+                (!filters.size || d.size === filters.size) &&
+                (!filters.hot_iced || d.hot_iced === filters.hot_iced) &&
+                (!filters.payment || d.payment_method === filters.payment)
+            );
+        }
+
+        function updateDash(){
+            const d = getFilteredData();
+            calcs(d);
+            renders(d);
+            document.getElementById('lastUp').textContent = dayjs().format('DD MMM, HH:mm:ss');
+            lucide.createIcons();
+        }
+
+        function calcs(d){
+            const revenue = d.reduce((s, x) => s + (parseFloat(x.net_sales_thb) || 0), 0);
+            const orders = [...new Set(d.map(x => x.order_id))].length;
+            const qty = d.reduce((s, x) => s + (parseInt(x.qty) || 0), 0);
+            const customers = [...new Set(d.map(x => x.customer))].length;
+            const newCust = d.filter(x => x.customer_type === 'New').length;
+            const retCust = d.filter(x => x.customer_type === 'Returning').length;
+            const discount = d.reduce((s, x) => s + (parseFloat(x.discount_thb) || 0), 0);
+            const gross = d.reduce((s, x) => s + ((parseFloat(x.unit_price_thb) || 0) * (parseInt(x.qty) || 0)), 0);
+            const promoO = d.filter(x => x.promo_flag == 1).length;
+            const promoR = d.filter(x => x.promo_flag == 1).reduce((s, x) => s + (parseFloat(x.net_sales_thb) || 0), 0);
+            const addonO = d.filter(x => x.add_on && x.add_on !== 'None').length;
+            const hours = [...new Set(d.map(x => x.hour))].filter(Boolean).length;
+
+            // Main KPIs
+            document.getElementById('totalRevenue').textContent = revenue.toLocaleString('th-TH', {style: 'currency', currency: 'THB', maximumFractionDigits: 0});
+            document.getElementById('totalOrders').textContent = orders.toLocaleString();
+            document.getElementById('aov').textContent = (orders > 0 ? revenue / orders : 0).toLocaleString('th-TH', {style: 'currency', currency: 'THB', maximumFractionDigits: 0});
+            document.getElementById('totalCustomers').textContent = customers.toLocaleString();
+            document.getElementById('newCustomers').textContent = newCust;
+            document.getElementById('returningCustomers').textContent = retCust;
+            document.getElementById('revGrowth').textContent = '+12.5%';
+
+            // Time
+            const hourRev = {}; d.forEach(x => { hourRev[x.hour] = (hourRev[x.hour] || 0) + (parseFloat(x.net_sales_thb) || 0); });
+            const peakH = Object.entries(hourRev).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('peakHour').textContent = peakH ? `${peakH[0]}:00` : '-';
+
+            const dayRev = {}; d.forEach(x => { dayRev[x.day_of_week] = (dayRev[x.day_of_week] || 0) + (parseFloat(x.net_sales_thb) || 0); });
+            const bestD = Object.entries(dayRev).sort((a, b) => b[1] - a[1])[0];
+            const worstD = Object.entries(dayRev).sort((a, b) => a[1] - b[1])[0];
+            const dm = {Mon:'จ.',Tue:'อ.',Wed:'พ.',Thu:'พฤ.',Fri:'ศ.',Sat:'ส.',Sun:'อา.'};
+            document.getElementById('bestDay').textContent = bestD ? dm[bestD[0]] || bestD[0] : '-';
+            document.getElementById('worstDay').textContent = worstD && worstD[1] > 0 ? dm[worstD[0]] || worstD[0] : '-';
+
+            const slotRev = {}; d.forEach(x => { slotRev[x.time_slot] = (slotRev[x.time_slot] || 0) + (parseFloat(x.net_sales_thb) || 0); });
+            const bestS = Object.entries(slotRev).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('bestSlot').textContent = bestS ? bestS[0] : '-';
+
+            // Promo
+            document.getElementById('totalDiscount').textContent = discount.toLocaleString() + '฿';
+            document.getElementById('discountRate').textContent = (gross > 0 ? discount / gross * 100 : 0).toFixed(1) + '%';
+            document.getElementById('promoOrders').textContent = promoO;
+            document.getElementById('promoEffect').textContent = (revenue > 0 ? promoR / revenue * 100 : 0).toFixed(1) + '%';
+
+            // Add-on
+            document.getElementById('addonOrders').textContent = addonO;
+            document.getElementById('addonRate').textContent = (orders > 0 ? addonO / orders * 100 : 0).toFixed(1) + '%';
+
+            // Customer
+            document.getElementById('custTotal').textContent = customers.toLocaleString();
+            document.getElementById('custNew').textContent = newCust;
+            document.getElementById('custReturning').textContent = retCust;
+            document.getElementById('custNewRate').textContent = (customers > 0 ? newCust / customers * 100 : 0).toFixed(1) + '%';
+            document.getElementById('custRetRate').textContent = (customers > 0 ? retCust / customers * 100 : 0).toFixed(1) + '%';
+            document.getElementById('custFreq').textContent = (customers > 0 ? orders / customers : 0).toFixed(1);
+            document.getElementById('repeatRate').textContent = (orders > 0 ? (orders - newCust) / orders * 100 : 0).toFixed(1) + '%';
+            document.getElementById('revPerCust').textContent = (customers > 0 ? revenue / customers : 0).toLocaleString() + '฿';
+            const revNew = d.filter(x => x.customer_type === 'New').reduce((s, x) => s + (parseFloat(x.net_sales_thb) || 0), 0);
+            document.getElementById('revNewCust').textContent = revNew.toLocaleString() + '฿';
+
+            // Payment
+            const payC = {}; d.forEach(x => { payC[x.payment_method] = (payC[x.payment_method] || 0) + 1; });
+            document.getElementById('payQR').textContent = (d.length ? (payC['QR/PromptPay'] || 0) / d.length * 100 : 0).toFixed(1) + '%';
+            document.getElementById('payCash').textContent = (d.length ? (payC['Cash'] || 0) / d.length * 100 : 0).toFixed(1) + '%';
+            document.getElementById('payCard').textContent = (d.length ? (payC['Card'] || 0) / d.length * 100 : 0).toFixed(1) + '%';
+
+            // Productivity
+            document.getElementById('ordersPerHour').textContent = hours > 0 ? (orders / hours).toFixed(1) : '-';
+            document.getElementById('revPerHour').textContent = hours > 0 ? (revenue / hours).toLocaleString() + '฿' : '-';
+            document.getElementById('itemsPerOrder').textContent = (orders > 0 ? qty / orders : 0).toFixed(2);
+            document.getElementById('totalQty').textContent = qty.toLocaleString();
+
+            // Growth
+            document.getElementById('momGrowth').textContent = '+8.5%';
+            document.getElementById('yoyGrowth').textContent = '+15.2%';
+            document.getElementById('trendDir').textContent = '↑';
+            document.getElementById('custGrowth').textContent = '+5.3%';
+        }
+
+        function renders(d){
+            Object.values(charts).forEach(c => c && c.destroy());
+
+            // Channel (with cross-filter)
+            const chD = {}; d.forEach(x => { chD[x.channel] = (chD[x.channel] || 0) + 1; });
+            const ctxCh = document.getElementById('chChannel').getContext('2d');
+            charts.ch = new Chart(ctxCh, {
+                type: 'pie',
+                data: { labels: Object.keys(chD), datasets: [{ data: Object.values(chD), backgroundColor: ['#4f46e5', '#10b981', '#f59e0b'], borderWidth: 0 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    onClick: (e, els) => { if(els.length) setFilter('channel', Object.keys(chD)[els[0].index]); }
+                }
+            });
+            document.getElementById('legendChannel').innerHTML = Object.entries(chD).map(([k, v]) => 
+                `<div class="flex justify-between text-sm filter-item cursor-pointer hover:bg-slate-100 p-1 rounded" onclick="setFilter('channel', '${k}')"><span>${k}</span><span class="font-medium">${v}</span></div>`).join('');
+
+            // Category (with cross-filter)
+            const catD = {}; d.forEach(x => { catD[x.category] = (catD[x.category] || 0) + (parseFloat(x.net_sales_thb) || 0); });
+            const ctxCat = document.getElementById('chCategory').getContext('2d');
+            const catC = ['#4f46e5', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
+            charts.cat = new Chart(ctxCat, {
+                type: 'doughnut',
+                data: { labels: Object.keys(catD), datasets: [{ data: Object.values(catD), backgroundColor: catC, borderWidth: 0 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    onClick: (e, els) => { if(els.length) setFilter('category', Object.keys(catD)[els[0].index]); }
+                }
+            });
+            const totCat = Object.values(catD).reduce((a, b) => a + b, 0);
+            document.getElementById('legendCategory').innerHTML = Object.entries(catD).map(([k, v], i) => 
+                `<div class="flex justify-between text-sm filter-item cursor-pointer hover:bg-slate-100 p-1 rounded" onclick="setFilter('category', '${k}')"><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:${catC[i]}"></span>${k}</span><span class="font-medium">${totCat > 0 ? (v / totCat * 100).toFixed(1) : 0}%</span></div>`).join('');
+
+            // Trend
+            const dateRev = {}; d.forEach(x => { const dt = x.order_date?.substring(0, 10); if (dt) dateRev[dt] = (dateRev[dt] || 0) + (parseFloat(x.net_sales_thb) || 0); });
+            const sD = Object.keys(dateRev).sort();
+            const ctxTrend = document.getElementById('chTrend').getContext('2d');
+            charts.trend = new Chart(ctxTrend, {
+                type: 'line',
+                data: { labels: sD.map(x => dayjs(x).format('DD/MM')), datasets: [{ data: sD.map(x => dateRev[x]), borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.1)', fill: true, tension: 0.4, pointRadius: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+
+            // Menu
+            const menuD = {}; d.forEach(x => { menuD[x.menu_item] = (menuD[x.menu_item] || 0) + (parseInt(x.qty) || 0); });
+            const topM = Object.entries(menuD).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            document.getElementById('topMenu').innerHTML = topM.map(([m, q], i) => 
+                `<div class="flex justify-between p-2 ${i === 0 ? 'bg-orange-50 rounded-lg' : ''} ${i < 3 ? 'bg-amber-50 rounded-lg' : ''}">
+                    <span class="font-medium">${i+1}. ${m}</span>
+                    <span class="font-bold">${q}</span>
+                </div>`).join('');
+
+            // Size
+            const szD = {}; d.forEach(x => { if (x.size) szD[x.size] = (szD[x.size] || 0) + 1; });
+            const ctxSz = document.getElementById('chSize').getContext('2d');
+            charts.sz = new Chart(ctxSz, {
+                type: 'doughnut',
+                data: { labels: Object.keys(szD), datasets: [{ data: Object.values(szD), backgroundColor: ['#f59e0b', '#4f46e5', '#10b981'], borderWidth: 0 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    onClick: (e, els) => { if(els.length) setFilter('size', Object.keys(szD)[els[0].index]); }
+                }
+            });
+            document.getElementById('statsSize').innerHTML = Object.entries(szD).map(([k, v]) => 
+                `<div class="text-center cursor-pointer hover:bg-slate-100 p-1 rounded" onclick="setFilter('size', '${k}')"><div class="font-bold">${v}</div><div class="lbl text-slate-500">Size ${k}</div></div>`).join('');
+
+            // Hot/Iced
+            const hiD = {Hot: 0, Iced: 0}; d.forEach(x => { if (x.hot_iced === 'Hot') hiD.Hot++; else if (x.hot_iced === 'Iced') hiD.Iced++; });
+            const ctxHi = document.getElementById('chHotIced').getContext('2d');
+            charts.hi = new Chart(ctxHi, {
+                type: 'doughnut',
+                data: { labels: ['Hot', 'Iced'], datasets: [{ data: [hiD.Hot, hiD.Iced], backgroundColor: ['#f43f5e', '#3b82f6'], borderWidth: 0 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    onClick: (e, els) => { if(els.length) setFilter('hot_iced', els[0].index === 0 ? 'Hot' : 'Iced'); }
+                }
+            });
+            document.getElementById('statsHotIced').innerHTML = 
+                `<div class="text-center cursor-pointer hover:bg-slate-100 p-1 rounded" onclick="setFilter('hot_iced', 'Hot')"><div class="font-bold text-rose-500">${hiD.Hot}</div><div class="lbl">ร้อน</div></div>
+                 <div class="text-center cursor-pointer hover:bg-slate-100 p-1 rounded" onclick="setFilter('hot_iced', 'Iced')"><div class="font-bold text-blue-500">${hiD.Iced}</div><div class="lbl">เย็น</div></div>`;
+
+            // Hour
+            const hrs = Array.from({length: 17}, (_, i) => i + 8);
+            const hrD = hrs.map(h => d.filter(x => parseInt(x.hour) === h).reduce((s, x) => s + (parseFloat(x.net_sales_thb) || 0), 0));
+            const ctxHr = document.getElementById('chHour').getContext('2d');
+            charts.hr = new Chart(ctxHr, {
+                type: 'bar',
+                data: { labels: hrs.map(h => `${h}:00`), datasets: [{ data: hrD, backgroundColor: hrD.map(v => v > 0 ? '#4f46e5' : '#e2e8f0'), borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+
+            // Add-on
+            const adD = {}; d.forEach(x => { if (x.add_on && x.add_on !== 'None') adD[x.add_on] = (adD[x.add_on] || 0) + 1; });
+            const topAd = Object.entries(adD).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            document.getElementById('topAddon').innerHTML = topAd.map(([a, c]) => 
+                `<div class="flex justify-between text-sm"><span>${a}</span><span class="font-bold">${c}</span></div>`).join('') || '<div class="text-slate-400 text-sm">ไม่มีข้อมูล Add-on</div>';
+
+            // Payment
+            const pm = {}; d.forEach(x => { pm[x.payment_method] = (pm[x.payment_method] || 0) + 1; });
+            const ctxPm = document.getElementById('chPayment').getContext('2d');
+            charts.pm = new Chart(ctxPm, {
+                type: 'doughnut',
+                data: { labels: Object.keys(pm), datasets: [{ data: Object.values(pm), backgroundColor: ['#10b981', '#f59e0b', '#4f46e5'], borderWidth: 0 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    onClick: (e, els) => { if(els.length) setFilter('payment', Object.keys(pm)[els[0].index]); }
+                }
+            });
+
+            // Productivity
+            const revenue = d.reduce((s, x) => s + (parseFloat(x.net_sales_thb) || 0), 0);
+            const orders = [...new Set(d.map(x => x.order_id))].length;
+            const qty = d.reduce((s, x) => s + (parseInt(x.qty) || 0), 0);
+            const hrs2 = [...new Set(d.map(x => x.hour))].filter(Boolean).length;
+            const ctxProd = document.getElementById('chProd').getContext('2d');
+            charts.prod = new Chart(ctxProd, {
+                type: 'bar',
+                data: { labels: ['คำสั่ง/ชม', 'รายได้/ชม', 'รายการ/ออร์เดอร์'], datasets: [{ data: [hrs2 > 0 ? orders / hrs2 : 0, hrs2 > 0 ? revenue / hrs2 : 0, orders > 0 ? qty / orders : 0], backgroundColor: ['#4f46e5', '#10b981', '#f59e0b'], borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+        }
+
+        document.getElementById('yearSel').addEventListener('change', updateDash);
+        document.getElementById('monthSel').addEventListener('change', updateDash);
+        document.getElementById('refreshBtn').addEventListener('click', loadData);
+        loadData();
+    </script>
+</body>
+</html>

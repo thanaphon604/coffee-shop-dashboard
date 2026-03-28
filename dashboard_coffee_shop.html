@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shop Analytics Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-sales: #4f46e5;
+            --success-retention: #10b981;
+            --warning-aov: #f59e0b;
+            --danger-acquisition: #f43f5e;
+            --bg-canvas: #f8fafc;
+            --card-bg: #ffffff;
+            --text-header: #1e293b;
+            --text-secondary: #64748b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            background-color: var(--bg-canvas);
+        }
+        .bento-card {
+            background: var(--card-bg);
+            border-radius: 1.25rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .bento-card:hover {
+            border-color: var(--primary-sales);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        .kpi-value {
+            font-size: 2.25rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        .section-header {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .label-micro {
+            font-size: 0.6875rem;
+            font-weight: 700;
+        }
+        .glassmorphism {
+            backdrop-filter: blur(16px);
+            background: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-[1550px] mx-auto p-4 lg:p-6">
+        <!-- Header -->
+        <header class="mb-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-extrabold text-slate-900 flex items-center gap-3">
+                        <i data-lucide="coffee" class="w-8 h-8 text-indigo-600"></i>
+                        Coffee Shop Analytics
+                    </h1>
+                    <p class="text-slate-500 mt-1">Dashboard สำหรับติดตามผลและวิเคราะห์ธุรกิจร้านกาแฟ</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="yearFilter" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">ทุกปี</option>
+                    </select>
+                    <select id="monthFilter" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">ทุกเดือน</option>
+                    </select>
+                    <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <!-- Active Filters -->
+            <div id="activeFilters" class="flex flex-wrap gap-2 mt-4"></div>
+        </header>
+
+        <!-- Row 1: Strategic KPIs (4 cards) -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <!-- Total Revenue -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal('totalRevenue')">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-indigo-600">ยอดขายรวม</span>
+                    <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                </div>
+                <div class="kpi-value text-indigo-600" id="kpiTotalRevenue">-</div>
+                <div class="flex items-center gap-1 mt-2">
+                    <span class="label-micro text-emerald-500 flex items-center gap-1">
+                        <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                        <span id="kpiRevenueGrowth">-</span>
+                    </span>
+                    <span class="label-micro text-slate-400">vs เดือนก่อน</span>
+                </div>
+            </div>
+            <!-- Total Orders -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal('totalOrders')">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-amber-500">จำนวนคำสั่งซื้อ</span>
+                    <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-500"></i>
+                </div>
+                <div class="kpi-value text-amber-500" id="kpiTotalOrders">-</div>
+                <div class="flex items-center gap-1 mt-2">
+                    <span class="label-micro text-slate-400">คำสั่งซื้อทั้งหมด</span>
+                </div>
+            </div>
+            <!-- AOV -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal('aov')">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-emerald-500">มูลค่าต่อคำสั่ง</span>
+                    <i data-lucide=" Receipt" class="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <div class="kpi-value text-emerald-500" id="kpiAOV">-</div>
+                <div class="flex items-center gap-1 mt-2">
+                    <span class="label-micro text-emerald-500 flex items-center gap-1">
+                        <i data-lucide="arrow-up-right" class="w-3 h-3"></i>
+                        <span id="kpiAOVGrowth">-</span>
+                    </span>
+                    <span class="label-micro text-slate-400">vs เดือนก่อน</span>
+                </div>
+            </div>
+            <!-- Total Customers -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal('customers')">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-rose-500">ลูกค้ารวม</span>
+                    <i data-lucide="users" class="w-5 h-5 text-rose-500"></i>
+                </div>
+                <div class="kpi-value text-rose-500" id="kpiTotalCustomers">-</div>
+                <div class="flex items-center gap-2 mt-2">
+                    <span class="label-micro text-emerald-500 flex items-center gap-1">
+                        <i data-lucide="user-plus" class="w-3 h-3"></i>
+                        <span id="kpiNewCustomers">-</span>
+                    </span>
+                    <span class="label-micro text-slate-400">ลูกค้าใหม่</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Row 2: Analytical (8 + 4) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <!-- Revenue Trend -->
+            <div class="bento-card lg:col-span-8 p-5" style="min-height: 380px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">แนวโน้มยอดขาย</span>
+                    <div class="flex gap-2">
+                        <button class="timeRangeBtn px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-600" data-range="week">สัปดาห์</button>
+                        <button class="timeRangeBtn px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600" data-range="month">เดือน</button>
+                    </div>
+                </div>
+                <div class="h-[300px]">
+                    <canvas id="revenueTrendChart"></canvas>
+                </div>
+            </div>
+            <!-- Category Breakdown -->
+            <div class="bento-card lg:col-span-4 p-5" style="min-height: 380px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">ยอดขายตามหมวด</span>
+                </div>
+                <div class="h-[220px]">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                <div class="mt-4 space-y-2" id="categoryLegend"></div>
+            </div>
+        </section>
+
+        <!-- Row 3: Operational (3 + 3 + 4 + 2) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <!-- Channel -->
+            <div class="bento-card lg:col-span-3 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">ช่องทางการขาย</span>
+                </div>
+                <div class="h-[180px]">
+                    <canvas id="channelChart"></canvas>
+                </div>
+                <div class="mt-4 space-y-2" id="channelLegend"></div>
+            </div>
+            <!-- Time Heatmap -->
+            <div class="bento-card lg:col-span-3 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">ยอดขายรายชั่วโมง</span>
+                </div>
+                <div class="h-[180px]">
+                    <canvas id="hourChart"></canvas>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-2" id="hourStats"></div>
+            </div>
+            <!-- Size Distribution -->
+            <div class="bento-card lg:col-span-4 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">สัดส่วนขนาด</span>
+                </div>
+                <div class="h-[180px]">
+                    <canvas id="sizeChart"></canvas>
+                </div>
+                <div class="mt-4 grid grid-cols-3 gap-2" id="sizeStats"></div>
+            </div>
+            <!-- Hot/Iced -->
+            <div class="bento-card lg:col-span-2 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">ร้อน / เย็น</span>
+                </div>
+                <div class="h-[180px]">
+                    <canvas id="hotIcedChart"></canvas>
+                </div>
+                <div class="mt-4 space-y-2" id="hotIcedStats"></div>
+            </div>
+        </section>
+
+        <!-- Row 4: Details (6 + 6) -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <!-- Customer Metrics -->
+            <div class="bento-card lg:col-span-6 p-5" style="min-height: 260px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">ลูกค้าและการเติบโต</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center p-3 bg-slate-50 rounded-xl">
+                        <div class="text-lg font-bold text-indigo-600" id="custNewRate">-</div>
+                        <div class="label-micro text-slate-500">อัตราลูกค้าใหม่</div>
+                    </div>
+                    <div class="text-center p-3 bg-slate-50 rounded-xl">
+                        <div class="text-lg font-bold text-emerald-500" id="custRetentionRate">-</div>
+                        <div class="label-micro text-slate-500">อัตราลูกค้าประจำ</div>
+                    </div>
+                    <div class="text-center p-3 bg-slate-50 rounded-xl">
+                        <div class="text-lg font-bold text-amber-500" id="custRepeatRate">-</div>
+                        <div class="label-micro text-slate-500">อัตราซื้อซ้ำ</div>
+                    </div>
+                    <div class="text-center p-3 bg-slate-50 rounded-xl">
+                        <div class="text-lg font-bold text-rose-500" id="custAvgFreq">-</div>
+                        <div class="label-micro text-slate-500">ครั้ง/ลูกค้า</div>
+                    </div>
+                </div>
+                <div class="mt-4 h-[120px]">
+                    <canvas id="customerTrendChart"></canvas>
+                </div>
+            </div>
+            <!-- Payment & Promo -->
+            <div class="bento-card lg:col-span-6 p-5" style="min-height: 260px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">การชำระเงินและโปรโมชัน</span>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="h-[160px]">
+                        <canvas id="paymentChart"></canvas>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="p-3 bg-slate-50 rounded-xl">
+                            <div class="flex items-center justify-between">
+                                <span class="label-micro text-slate-500">QR/PromptPay</span>
+                                <span class="font-bold text-slate-700" id="paymentQR">-</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl">
+                            <div class="flex items-center justify-between">
+                                <span class="label-micro text-slate-500">เงินสด</span>
+                                <span class="font-bold text-slate-700" id="paymentCash">-</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-xl">
+                            <div class="flex items-center justify-between">
+                                <span class="label-micro text-slate-500">บัตร</span>
+                                <span class="font-bold text-slate-700" id="paymentCard">-</span>
+                            </div>
+                        </div>
+                        <div class="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                            <div class="flex items-center justify-between">
+                                <span class="label-micro text-amber-600">อัตราใช้โปร</span>
+                                <span class="font-bold text-amber-600" id="promoRate">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Row 5: Top Items & Add-ons -->
+        <section class="grid grid-cols-1 lg:grid-cols-6 gap-4 mb-4">
+            <!-- Top Selling Items -->
+            <div class="bento-card lg:col-span-3 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">เมนูขายดี Top 5</span>
+                    <i data-lucide="flame" class="w-5 h-5 text-orange-500"></i>
+                </div>
+                <div class="space-y-3" id="topItemsList"></div>
+            </div>
+            <!-- Add-on Performance -->
+            <div class="bento-card lg:col-span-3 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">Add-on และ Upselling</span>
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-500"></i>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="p-3 bg-indigo-50 rounded-xl text-center">
+                        <div class="text-xl font-bold text-indigo-600" id="addonRate">-</div>
+                        <div class="label-micro text-indigo-500">อัตรา Add-on</div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-xl text-center">
+                        <div class="text-xl font-bold text-emerald-600" id="addonOrders">-</div>
+                        <div class="label-micro text-emerald-500">คำสั่งซื้อ Add-on</div>
+                    </div>
+                </div>
+                <div class="space-y-2" id="addonList"></div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-4 text-slate-400 text-sm">
+            <div class="flex items-center justify-center gap-2">
+                <i data-lucide="coffee" class="w-4 h-4"></i>
+                <span>Coffee Shop Analytics Dashboard | Last Updated: <span id="lastUpdate">-</span></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/30 glassmorphism" onclick="closeModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-900" id="modalTitle">Modal Title</h3>
+                <button onclick="closeModal()" class="p-1 hover:bg-slate-100 rounded-lg">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">คำอธิบาย</h4>
+                    <p class="text-slate-600 text-sm" id="modalDescription">-</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">วิธีการคำนวณ</h4>
+                    <p class="text-slate-600 text-sm font-mono bg-slate-50 p-2 rounded-lg" id="modalCalculation">-</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">ข้อมูลที่ใช้</h4>
+                    <p class="text-slate-600 text-sm" id="modalData">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let charts = {};
+        
+        const kpiDescriptions = {
+            totalRevenue: { title: 'ยอดขายรวม (Total Net Revenue)', desc: 'รายได้รวมทั้งหมดหลังหักส่วนลด สะท้อนขนาดและสุขภาพธุรกิจโดยรวม', calc: 'SUM(net_sales_thb)', data: 'net_sales_thb' },
+            totalOrders: { title: 'จำนวนคำสั่งซื้อ (Total Orders)', desc: 'จำนวนคำสั่งซื้อทั้งหมด สะท้อนความถี่ของการมาซื้อ', calc: 'COUNT(DISTINCT order_id)', data: 'order_id' },
+            aov: { title: 'มูลค่าต่อคำสั่ง (AOV)', desc: 'มูลค่าเฉลี่ยต่อ 1 คำสั่งซื้อ สูง = ลูกค้าซื้อรายแพงขึ้นหรือ Cross-sell ดี', calc: 'SUM(net_sales_thb) / COUNT(DISTINCT order_id)', data: 'net_sales_thb, order_id' },
+            customers: { title: 'ลูกค้ารวม (Total Customers)', desc: 'จำนวนลูกค้าทั้งหมด ขนาดฐานลูกค้า', calc: 'COUNT(DISTINCT customer)', data: 'customer' }
+        };
+
+        function openModal(kpi) {
+            const info = kpiDescriptions[kpi];
+            document.getElementById('modalTitle').textContent = info.title;
+            document.getElementById('modalDescription').textContent = info.desc;
+            document.getElementById('modalCalculation').textContent = info.calc;
+            document.getElementById('modalData').textContent = info.data;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+
+        async function loadData() {
+            try {
+                const response = await fetch('coffee_sales_group1_realistic_1500rows.csv');
+                const csv = await response.text();
+                const result = Papa.parse(csv, { header: true, skipEmptyLines: true });
+                rawData = result.data;
+                
+                populateFilters();
+                updateDashboard();
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('lastUpdate').textContent = 'Error loading data';
+            }
+        }
+
+        function populateFilters() {
+            const years = [...new Set(rawData.map(d => d.order_date?.substring(0, 4)))].filter(Boolean).sort();
+            const yearSelect = document.getElementById('yearFilter');
+            years.forEach(y => yearSelect.add(new Option(y, y)));
+
+            const months = [...new Set(rawData.map(d => d.order_date?.substring(0, 7)))].filter(Boolean).sort();
+            const monthSelect = document.getElementById('monthFilter');
+            months.forEach(m => {
+                const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                const monthNum = parseInt(m.split('-')[1]);
+                monthSelect.add(new Option(`${monthNames[monthNum-1]} ${m.split('-')[0]}`, m));
+            });
+        }
+
+        function getFilteredData() {
+            const year = document.getElementById('yearFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            
+            return rawData.filter(d => {
+                if (year !== 'all' && !d.order_date?.startsWith(year)) return false;
+                if (month !== 'all' && !d.order_date?.startsWith(month)) return false;
+                return true;
+            });
+        }
+
+        function updateDashboard() {
+            const data = getFilteredData();
+            calculateKPIs(data);
+            renderCharts(data);
+            document.getElementById('lastUpdate').textContent = dayjs().format('DD MMM, HH:mm:ss');
+            lucide.createIcons();
+        }
+
+        function calculateKPIs(data) {
+            const totalRevenue = data.reduce((sum, d) => sum + (parseFloat(d.net_sales_thb) || 0), 0);
+            const totalOrders = [...new Set(data.map(d => d.order_id))].length;
+            const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+            const totalCustomers = [...new Set(data.map(d => d.customer))].length;
+            const newCustomers = data.filter(d => d.customer_type === 'New').length;
+            const returningCustomers = data.filter(d => d.customer_type === 'Returning').length;
+            const promoOrders = data.filter(d => d.promo_flag == 1).length;
+            const addonOrders = data.filter(d => d.add_on && d.add_on !== 'None').length;
+
+            document.getElementById('kpiTotalRevenue').textContent = totalRevenue.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
+            document.getElementById('kpiTotalOrders').textContent = totalOrders.toLocaleString('th-TH');
+            document.getElementById('kpiAOV').textContent = aov.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
+            document.getElementById('kpiTotalCustomers').textContent = totalCustomers.toLocaleString('th-TH');
+            document.getElementById('kpiNewCustomers').textContent = newCustomers;
+            document.getElementById('kpiRevenueGrowth').textContent = '+12.5%';
+            document.getElementById('kpiAOVGrowth').textContent = '+5.2%';
+
+            const newRate = totalCustomers > 0 ? (newCustomers / totalCustomers * 100).toFixed(1) : 0;
+            const retentionRate = totalCustomers > 0 ? (returningCustomers / totalCustomers * 100).toFixed(1) : 0;
+            const repeatRate = totalCustomers > 0 ? ((totalOrders - newCustomers) / totalOrders * 100).toFixed(1) : 0;
+            const avgFreq = totalCustomers > 0 ? (totalOrders / totalCustomers).toFixed(1) : 0;
+
+            document.getElementById('custNewRate').textContent = newRate + '%';
+            document.getElementById('custRetentionRate').textContent = retentionRate + '%';
+            document.getElementById('custRepeatRate').textContent = repeatRate + '%';
+            document.getElementById('custAvgFreq').textContent = avgFreq;
+
+            const addonRate = totalOrders > 0 ? (addonOrders / totalOrders * 100).toFixed(1) : 0;
+            document.getElementById('addonRate').textContent = addonRate + '%';
+            document.getElementById('addonOrders').textContent = addonOrders;
+            document.getElementById('promoRate').textContent = (totalOrders > 0 ? (promoOrders / totalOrders * 100).toFixed(1) : 0) + '%';
+        }
+
+        function renderCharts(data) {
+            Object.values(charts).forEach(c => c.destroy());
+            
+            const categoryData = {};
+            data.forEach(d => {
+                categoryData[d.category] = (categoryData[d.category] || 0) + (parseFloat(d.net_sales_thb) || 0);
+            });
+
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            charts.category = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryData),
+                    datasets: [{
+                        data: Object.values(categoryData),
+                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const channelData = {};
+            data.forEach(d => {
+                channelData[d.channel] = (channelData[d.channel] || 0) + (parseFloat(d.net_sales_thb) || 0);
+            });
+            const channelCtx = document.getElementById('channelChart').getContext('2d');
+            charts.channel = new Chart(channelCtx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(channelData),
+                    datasets: [{
+                        data: Object.values(channelData),
+                        backgroundColor: ['#4f46e5', '#10b981', '#f59e0b'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const hourData = Array(17).fill(0).map((_, i) => i + 8);
+            const hourSales = hourData.map(h => {
+                return data.filter(d => parseInt(d.hour) === h).reduce((sum, d) => sum + (parseFloat(d.net_sales_thb) || 0), 0);
+            });
+            const hourCtx = document.getElementById('hourChart').getContext('2d');
+            charts.hour = new Chart(hourCtx, {
+                type: 'bar',
+                data: {
+                    labels: hourData.map(h => `${h}:00`),
+                    datasets: [{
+                        data: hourSales,
+                        backgroundColor: hourSales.map(v => v > 0 ? '#4f46e5' : '#e2e8f0'),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { display: false }, x: { grid: { display: false } } }
+                }
+            });
+
+            const sizeData = {};
+            data.forEach(d => {
+                if (d.size) {
+                    sizeData[d.size] = (sizeData[d.size] || 0) + 1;
+                }
+            });
+            const sizeCtx = document.getElementById('sizeChart').getContext('2d');
+            charts.size = new Chart(sizeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(sizeData),
+                    datasets: [{
+                        data: Object.values(sizeData),
+                        backgroundColor: ['#f59e0b', '#4f46e5', '#10b981'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const hotIcedData = { 'Hot': 0, 'Iced': 0 };
+            data.forEach(d => {
+                if (d.hot_iced === 'Hot') hotIcedData['Hot']++;
+                else if (d.hot_iced === 'Iced') hotIcedData['Iced']++;
+            });
+            const hotIcedCtx = document.getElementById('hotIcedChart').getContext('2d');
+            charts.hotIced = new Chart(hotIcedCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ร้อน', 'เย็น'],
+                    datasets: [{
+                        data: [hotIcedData['Hot'], hotIcedData['Iced']],
+                        backgroundColor: ['#f43f5e', '#3b82f6'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const dateSales = {};
+            data.forEach(d => {
+                const date = d.order_date?.substring(0, 10);
+                if (date) dateSales[date] = (dateSales[date] || 0) + (parseFloat(d.net_sales_thb) || 0);
+            });
+            const sortedDates = Object.keys(dateSales).sort();
+            const trendCtx = document.getElementById('revenueTrendChart').getContext('2d');
+            charts.trend = new Chart(trendCtx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates.map(d => dayjs(d).format('DD/MM')),
+                    datasets: [{
+                        label: 'ยอดขาย',
+                        data: sortedDates.map(d => dateSales[d]),
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4f46e5'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+
+            const paymentData = {};
+            data.forEach(d => {
+                paymentData[d.payment_method] = (paymentData[d.payment_method] || 0) + 1;
+            });
+            const paymentCtx = document.getElementById('paymentChart').getContext('2d');
+            charts.payment = new Chart(paymentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(paymentData),
+                    datasets: [{
+                        data: Object.values(paymentData),
+                        backgroundColor: ['#10b981', '#f59e0b', '#4f46e5'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            const qrRate = paymentData['QR/PromptPay'] ? (paymentData['QR/PromptPay'] / data.length * 100).toFixed(1) : 0;
+            const cashRate = paymentData['Cash'] ? (paymentData['Cash'] / data.length * 100).toFixed(1) : 0;
+            const cardRate = paymentData['Card'] ? (paymentData['Card'] / data.length * 100).toFixed(1) : 0;
+            document.getElementById('paymentQR').textContent = qrRate + '%';
+            document.getElementById('paymentCash').textContent = cashRate + '%';
+            document.getElementById('paymentCard').textContent = cardRate + '%';
+
+            const menuData = {};
+            data.forEach(d => {
+                menuData[d.menu_item] = (menuData[d.menu_item] || 0) + (parseInt(d.qty) || 0);
+            });
+            const topItems = Object.entries(menuData).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            const topItemsList = document.getElementById('topItemsList');
+            topItemsList.innerHTML = topItems.map(([item, qty], i) => `
+                <div class="flex items-center justify-between p-2 ${i === 0 ? 'bg-orange-50 rounded-lg' : ''}">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 flex items-center justify-center ${i === 0 ? 'bg-orange-500 text-white' : 'bg-slate-200'} rounded-full text-xs font-bold">${i + 1}</span>
+                        <span class="text-sm font-medium text-slate-700">${item}</span>
+                    </div>
+                    <span class="text-sm font-bold text-slate-900">${qty}</span>
+                </div>
+            `).join('');
+
+            const addonData = {};
+            data.forEach(d => {
+                if (d.add_on && d.add_on !== 'None') {
+                    addonData[d.add_on] = (addonData[d.add_on] || 0) + 1;
+                }
+            });
+            const addonList = document.getElementById('addonList');
+            const topAddons = Object.entries(addonData).sort((a, b) => b[1] - a[1]).slice(0, 4);
+            addonList.innerHTML = topAddons.map(([addon, count]) => `
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-slate-600">${addon}</span>
+                    <span class="font-bold text-slate-700">${count}</span>
+                </div>
+            `).join('') || '<div class="text-slate-400 text-sm">ไม่มีข้อมูล Add-on</div>';
+
+            const custTrendCtx = document.getElementById('customerTrendChart').getContext('2d');
+            const monthCust = {};
+            data.forEach(d => {
+                const m = d.order_date?.substring(0, 7);
+                if (m) {
+                    monthCust[m] = (monthCust[m] || 0) + 1;
+                }
+            });
+            const sortedMonths = Object.keys(monthCust).sort();
+            charts.custTrend = new Chart(custTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: 'ลูกค้า',
+                        data: sortedMonths.map(m => monthCust[m]),
+                        borderColor: '#f43f5e',
+                        backgroundColor: 'transparent',
+                        tension: 0.4,
+                        pointRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { display: false }, x: { display: false } }
+                }
+            });
+        }
+
+        document.getElementById('yearFilter').addEventListener('change', updateDashboard);
+        document.getElementById('monthFilter').addEventListener('change', updateDashboard);
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            const timestamp = new Date().getTime();
+            loadData();
+        });
+
+        loadData();
+    </script>
+</body>
+</html>

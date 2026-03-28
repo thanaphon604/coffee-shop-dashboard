@@ -1,0 +1,61 @@
+ลำดับ,มิติ,ชื่อ KPI,คำอธิบาย KPI (สำหรับ CEO),การแปลผล (สำหรับ CEO),วิธีการคำนวณ,ข้อมูลที่ใช้
+1,ยอดขายรวม,Total Net Revenue,รายได้รวมทั้งหมดหลังหักส่วนลด,สะท้อนขนาดและสุขภาพธุรกิจโดยรวม,SUM(net_sales_thb),net_sales_thb
+2,ยอดขายรวม,Total Orders,จำนวนคำสั่งซื้อทั้งหมด,ความถี่ของการมาซื้อ,COUNT(DISTINCT order_id),order_id
+3,ยอดขายรวม,Average Order Value (AOV),มูลค่าเฉลี่ยต่อ 1 คำสั่งซื้อ,สูง = ลูกค้าซื้อรายแพงขึ้น หรือ Cross-sell ดี,SUM(net_sales_thb) / COUNT(DISTINCT order_id),net_sales_thb, order_id
+4,ยอดขายรวม,Items per Order,จำนวนรายการเฉลี่ยต่อออร์เดอร์,สูง = ลูกค้าซื้อหลายรายการ หรือ Upsell สำเร็จ,SUM(qty) / COUNT(DISTINCT order_id),qty, order_id
+5,ยอดขายรวม,Total Quantity Sold,จำนวนแก้ว/รายการรวมที่ขาย,ปริมาณการขายโดยรวม,SUM(qty),qty
+6,ยอดขายตามช่องทาง,Revenue by Channel,ยอดขายแต่ละช่องทาง (Walk-in, Grab, Line Man),ช่องทางไหนสร้างรายได้มากที่สุด,GROUP BY channel, SUM(net_sales_thb),channel, net_sales_thb
+7,ยอดขายตามช่องทาง,Order Count by Channel,จำนวนคำสั่งซื้อตามช่องทาง,ช่องทางไหนมีคำสั่งซื้อมากที่สุด,GROUP BY channel, COUNT(order_id),channel, order_id
+8,ยอดขายตามช่องทาง,AOV by Channel,มูลค่าเฉลี่ยต่อคำสั่งซื้อตามช่องทาง,ช่องทางไหนมี Basket Size สูงสุด,GROUP BY channel, AVG(net_sales_thb),channel, net_sales_thb
+9,ยอดขายตามช่องทาง,Channel Mix (%),สัดส่วนรายได้แต่ละช่องทาง,กระจายความเสี่ยงหรือพึ่งพาช่องทางเดียว,(Channel Revenue / Total Revenue) * 100,channel, net_sales_thb
+10,ยอดขายตามหมวดสินค้า,Revenue by Category,ยอดขายแต่ละหมวด (Coffee, Tea, Soda, Bakery, Non-Coffee),หมวดไหนเป็นรายได้หลัก,GROUP BY category, SUM(net_sales_thb),category, net_sales_thb
+11,ยอดขายตามหมวดสินค้า,Category Mix (%),สัดส่วนยอดขายแต่ละหมวด,ดูความหลากหลายของรายได้,(Category Revenue / Total Revenue) * 100,category, net_sales_thb
+12,ยอดขายตามหมวดสินค้า,Top Category,หมวดสินค้าที่ขายดีที่สุด,โฟกัสการตลาดที่หมวดหลัก,RANK by SUM(net_sales_thb),category
+13,ยอดขายตามเมนู,Top Selling Menu Item,รายการที่ขายมากที่สุด (Top 10),เมนูฮิต ต้องรักษาคุณภาพ,GROUP BY menu_item, SUM(qty) ORDER BY DESC,menu_item, qty
+14,ยอดขายตามเมนู,Bottom Selling Menu Item,รายการที่ขายน้อยที่สุด,พิจารณาปรับเมนูหรือ discontinue,GROUP BY menu_item, SUM(qty) ORDER BY ASC,menu_item, qty
+15,ยอดขายตามเมนู,Menu Item Revenue,รายได้แต่ละเมนู,ดูมูลค่าที่แท้จริงของแต่ละเมนู,GROUP BY menu_item, SUM(net_sales_thb),menu_item, net_sales_thb
+16,ยอดขายตามขนาด,Revenue by Size,ยอดขายตามขนาด (S, M, L),ขนาดไหนขายดี ขนาดไหนขายแย่,GROUP BY size, SUM(net_sales_thb),size, net_sales_thb
+17,ยอดขายตามขนาด,Size Mix (%),สัดส่วนการขายตามขนาด,ลูกค้าชอบขนาดไหน,(Size Count / Total Size Count) * 100,size
+18,ยอดขายตามขนาด,Size AOV,มูลค่าเฉลี่ยต่อขนาด,ขนาดไหนให้รายได้เฉลี่ยสูงสุด,GROUP BY size, AVG(net_sales_thb),size, net_sales_thb
+19,ยอดขายตามอุณหภูมิ,Hot vs Iced Revenue,ยอดขายร้อน vs เย็น,ลูกค้าชอบแบบไหนมากกว่า,GROUP BY hot_iced, SUM(net_sales_thb),hot_iced, net_sales_thb
+20,ยอดขายตามอุณหภูมิ,Hot vs Iced Mix (%),สัดส่วนร้อน vs เย็น,ฤดูกาลมีผลต่อการตัดสินใจ,(Hot or Iced Count / Total) * 100,hot_iced
+21,ยอดขายตามเวลา,Revenue by Hour,ยอดขายรายชั่วโมง,ดูช่วงเวลา Peak ของวัน,GROUP BY hour, SUM(net_sales_thb),hour, net_sales_thb
+22,ยอดขายตามเวลา,Orders by Hour,จำนวนคำสั่งซื้อรายชั่วโมง,ช่วงไหนยุ่งที่สุด,GROUP BY hour, COUNT(order_id),hour, order_id
+23,ยอดขายตามเวลา,Peak Hour Identification,ชั่วโมงที่มียอดขายสูงสุด 3 อันดับ,วางแผน Staffing และ Inventory,RANK by SUM(net_sales_thb),hour
+24,ยอดขายตามเวลา,Revenue by Time Slot,ยอดขายตามช่วงเวลา (Morning Peak, Midday, Afternoon Peak, Late),ช่วงไหนขายดี,GROUP BY time_slot, SUM(net_sales_thb),time_slot, net_sales_thb
+25,ยอดขายตามเวลา,Revenue by Day of Week,ยอดขายรายวันในสัปดาห์,วันไหนขายดี วันไหนขายแย่,GROUP BY day_of_week, SUM(net_sales_thb),day_of_week, net_sales_thb
+26,ยอดขายตามเวลา,Best Day,วันที่มียอดขายสูงสุด,วันหยุดหรือวันทำการ,RANK by SUM(net_sales_thb),day_of_week
+27,ยอดขายตามเวลา,Day of Week Mix (%),สัดส่วนยอดขายแต่ละวัน,Seasonality ภายในสัปดาห์,(Day Revenue / Total Week Revenue) * 100,day_of_week
+28,ส่วนลดและโปรโมชัน,Total Discount Amount,มูลค่าส่วนลดรวม,ต้นทุนจากส่วนลดทั้งหมด,SUM(discount_thb),discount_thb
+29,ส่วนลดและโปรโมชัน,Discount Rate (%),อัตราส่วนลดต่อยอดขาย,สูงเกินไป = กดกำไร,SUM(discount_thb) / SUM(unit_price_thb * qty) * 100,discount_thb, unit_price_thb, qty
+30,ส่วนลดและโปรโมชัน,Promo Order Count,จำนวนคำสั่งซื้อที่ใช้โปร,ลูกค้าใช้โปรมากแค่ไหน,COUNT(where promo_flag = 1),promo_flag
+31,ส่วนลดและโปรโมชัน,Promo Revenue,รายได้จากคำสั่งซื้อที่ใช้โปร,โปรสร้างรายได้เท่าไหร่,SUM(net_sales_thb where promo_flag = 1),promo_flag, net_sales_thb
+32,ส่วนลดและโปรโมชัน,Promo Effectiveness (%),% รายได้จากโปร,โปรคุ้มค่าหรือไม่,(Promo Revenue / Total Revenue) * 100,promo_flag, net_sales_thb
+33,ส่วนลดและโปรโมชัน,Non-Promo Revenue,รายได้จากคำสั่งซื้อปกติ,รายได้หลักไม่ใช่โปร,SUM(net_sales_thb where promo_flag = 0),promo_flag, net_sales_thb
+34,Add-on และ Upselling,Add-on Order Count,จำนวนคำสั่งซื้อที่มี Add-on,ลูกค้าซื้อ Add-on มากแค่ไหน,COUNT(where add_on != 'None'),add_on
+35,Add-on และ Upselling,Add-on Rate (%),% คำสั่งซื้อที่มี Add-on,สูง = พนักงานขายเก่ง,(Add-on Orders / Total Orders) * 100,add_on, order_id
+36,Add-on และ Upselling,Top Add-on,Add-on ที่ขายดีที่สุด,แนะนำ Topping ยอดนิยม,GROUP BY add_on, COUNT(*),add_on
+37,Add-on และ Upselling,Add-on Revenue,รายได้จาก Add-on (ถ้ามีราคา),รายได้เพิ่มจาก Upselling,SUM(add_on price),add_on
+38,ลูกค้า,Total Unique Customers,จำนวนลูกค้าทั้งหมด,ขนาดฐานลูกค้า,COUNT(DISTINCT customer),customer
+39,ลูกค้า,New Customers,จำนวนลูกค้าใหม่,ความสามารถในการหาลูกค้าใหม่,COUNT(where customer_type = 'New'),customer_type
+40,ลูกค้า,Returning Customers,จำนวนลูกค้าประจำ,ความภักดีต่อแบรนด์,COUNT(where customer_type = 'Returning'),customer_type
+41,ลูกค้า,New Customer Rate (%),% ลูกค้าใหม่,อัตราการได้ลูกค้าใหม่,(New Customers / Total Customers) * 100,customer_type
+42,ลูกค้า,Returning Customer Rate (%),% ลูกค้ากลับมา,ความภักดี (สำคัญมาก),(Returning Customers / Total Customers) * 100,customer_type
+43,ลูกค้า,Repeat Purchase Rate (%),% ลูกค้าที่ซื้อซ้ำ,ลูกค้ากลับมาซื้ออีก,(Customers with >1 order / Total Customers) * 100,customer, order_id
+44,ลูกค้า,Customer Avg Order Frequency,จำนวนครั้งเฉลี่ยที่ลูกค้าซื้อ,ความถี่ในการกลับมา,COUNT(order_id) / COUNT(DISTINCT customer),customer, order_id
+45,ลูกค้า,Revenue per Customer,รายได้เฉลี่ยต่อลูกค้า,มูลค่าชั่วนิ่มของลูกค้า,SUM(net_sales_thb) / COUNT(DISTINCT customer),net_sales_thb, customer
+46,ลูกค้า,New Customer Revenue,รายได้จากลูกค้าใหม่,ลูกค้าใหม่สร้างรายได้เท่าไหร่,SUM(net_sales_thb where customer_type = 'New'),customer_type, net_sales_thb
+47,ลูกค้า,Returning Customer Revenue,รายได้จากลูกค้าประจำ,ลูกค้าประจำสร้างรายได้เท่าไหร่,SUM(net_sales_thb where customer_type = 'Returning'),customer_type, net_sales_thb
+48,การชำระเงิน,Payment Method Mix (%),สัดส่วนวิธีการชำระเงิน,ลูกค้าชอบวิธีไหน,GROUP BY payment_method, COUNT(*) / Total * 100,payment_method
+49,การชำระเงิน,QR/PromptPay Usage (%),% การใช้ QR Payment,ความนิยม Digital Payment,(QR Transactions / Total) * 100,payment_method
+50,การชำระเงิน,Cash Usage (%),% การใช้เงินสด,ต้องเตรียมเงินทอน,(Cash Transactions / Total) * 100,payment_method
+51,การชำระเงิน,Card Usage (%),% การใช้บัตร,ลูกค้ากระเป๋าหนาหรือเปล่า,(Card Transactions / Total) * 100,payment_method
+52,Productivity,Orders per Hour,จำนวนคำสั่งซื้อต่อชั่วโมง,Productivity ต่อชั่วโมง,GROUP BY hour, COUNT(order_id),hour, order_id
+53,Productivity,Revenue per Hour,รายได้ต่อชั่วโมง,ประสิทธิภาพรายชั่วโมง,GROUP BY hour, SUM(net_sales_thb),hour, net_sales_thb
+54,Productivity,Peak vs Off-Peak Ratio,อัตราส่วน Peak vs ไม่ Peak,ความแตกต่างรายได้ช่วง Peak,(Peak Revenue / Off-Peak Revenue),time_slot, net_sales_thb
+55,Productivity,Revenue per Working Hour,รายได้ต่อชั่วโมงทำงาน (รวมทุกชั่วโมง),Overall Productivity,SUM(net_sales_thb) / COUNT(DISTINCT hour),net_sales_thb, hour
+56,Productivity,Average Items per Transaction,รายการเฉลี่ยต่อ Transaction,ขายได้หลายรายการแค่ไหน,SUM(qty) / COUNT(order_id),qty, order_id
+57,Trend และ Growth,MoM Revenue Growth (%),อัตราการเติบโตเดือนต่อเดือน,การเติบโตของธุรกิจ,(Current Month - Previous Month) / Previous Month * 100,order_date, net_sales_thb
+58,Trend และ Growth,YoY Revenue Growth (%),อัตราการเติบโตปีต่อปี,การเติบโตระยะยาว,(Current Year - Previous Year) / Previous Year * 100,order_date, net_sales_thb
+59,Trend และ Growth,Revenue Trend Direction,ทิศทางแนวโน้มยอดขาย,ขายขึ้นหรือลง,Linear Regression ของ Revenue vs Date,order_date, net_sales_thb
+60,Trend และ Growth,Customer Growth Rate (%),อัตราการเติบโตของลูกค้า,ฐานลูกค้าขยายตัวหรือไม่,(Current Month Customers - Previous Month) / Previous * 100,order_date, customer

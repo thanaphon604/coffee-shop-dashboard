@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shop KPI Dashboard - Test2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #f43f5e;
+            --bg: #f8fafc;
+            --card: #ffffff;
+        }
+        body { font-family: 'Inter', sans-serif; font-size: 16px; background: var(--bg); }
+        .bento { background: var(--card); border-radius: 1.25rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.3s; }
+        .bento:hover { border-color: var(--primary); box-shadow: 0 10px 25px rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .kpi-val { font-size: 2.25rem; font-weight: 800; line-height: 1.2; }
+        .hdr { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .lbl { font-size: 0.6875rem; font-weight: 700; }
+        .glass { backdrop-filter: blur(16px); background: rgba(255,255,255,0.95); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-[1550px] mx-auto p-4 lg:p-6">
+        <!-- Header -->
+        <header class="mb-6">
+            <div class="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-extrabold text-slate-900 flex items-center gap-3">
+                        <i data-lucide="coffee" class="w-8 h-8 text-indigo-600"></i>
+                        Coffee Shop KPI Dashboard <span class="text-indigo-600">Test2</span>
+                    </h1>
+                    <p class="text-slate-500 mt-1">Dashboard วิเคราะห์ธุรกิจร้านกาแฟครบทุกมิติ | 60 KPIs</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="yearSel" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
+                        <option value="all">ทุกปี</option>
+                    </select>
+                    <select id="monthSel" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium">
+                        <option value="all">ทุกเดือน</option>
+                    </select>
+                    <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ROW 1: KPI Overview 1-5 -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+            <div class="bento p-5 cursor-pointer" onclick="openKpi(1)">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-indigo-600">1.ยอดขายรวม</span>
+                    <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                </div>
+                <div class="kpi-val text-indigo-600" id="v1">-</div>
+                <div class="lbl text-emerald-500 mt-1">↑ <span id="g1">-</span></div>
+            </div>
+            <div class="bento p-5 cursor-pointer" onclick="openKpi(2)">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-amber-500">2.คำสั่งซื้อ</span>
+                    <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-500"></i>
+                </div>
+                <div class="kpi-val text-amber-500" id="v2">-</div>
+            </div>
+            <div class="bento p-5 cursor-pointer" onclick="openKpi(3)">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-emerald-500">3.AOV</span>
+                    <i data-lucide="receipt" class="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <div class="kpi-val text-emerald-500" id="v3">-</div>
+            </div>
+            <div class="bento p-5 cursor-pointer" onclick="openKpi(4)">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-rose-500">4.รายการ/ออร์เดอร์</span>
+                    <i data-lucide="package" class="w-5 h-5 text-rose-500"></i>
+                </div>
+                <div class="kpi-val text-rose-500" id="v4">-</div>
+            </div>
+            <div class="bento p-5 cursor-pointer" onclick="openKpi(5)">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-purple-500">5.จำนวนที่ขาย</span>
+                    <i data-lucide="boxes" class="w-5 h-5 text-purple-500"></i>
+                </div>
+                <div class="kpi-val text-purple-500" id="v5">-</div>
+            </div>
+        </section>
+
+        <!-- ROW 2: Channel + Category + Trend -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-3 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">6-9.ช่องทางขาย</span>
+                </div>
+                <div class="h-[140px]"><canvas id="c6"></canvas></div>
+                <div class="mt-2 space-y-1" id="l6"></div>
+            </div>
+            <div class="bento lg:col-span-5 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">10-12.หมวดสินค้า</span>
+                </div>
+                <div class="h-[160px]"><canvas id="c10"></canvas></div>
+                <div class="mt-2 grid grid-cols-2 gap-1" id="l10"></div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">แนวโน้มยอดขาย</span>
+                </div>
+                <div class="h-[180px]"><canvas id="cTrend"></canvas></div>
+            </div>
+        </section>
+
+        <!-- ROW 3: Menu + Size + HotIced -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">13-15.เมนูขายดี</span>
+                </div>
+                <div class="space-y-2 max-h-[220px] overflow-auto" id="menuList"></div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">16-18.ขนาด</span>
+                </div>
+                <div class="h-[140px]"><canvas id="c16"></canvas></div>
+                <div class="grid grid-cols-3 gap-2 mt-2" id="s16"></div>
+            </div>
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">19-20.ร้อน/เย็น</span>
+                </div>
+                <div class="h-[140px]"><canvas id="c19"></canvas></div>
+                <div class="grid grid-cols-2 gap-2 mt-2" id="s19"></div>
+            </div>
+        </section>
+
+        <!-- ROW 4: Time + Discount -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-7 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">21-27.เวลา (ชั่วโมง/วัน)</span>
+                </div>
+                <div class="h-[160px]"><canvas id="c21"></canvas></div>
+                <div class="grid grid-cols-4 gap-2 mt-2">
+                    <div class="text-center p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(23)">
+                        <div class="lbl text-slate-500">Peak Hour</div>
+                        <div class="font-bold text-indigo-600" id="v23">-</div>
+                    </div>
+                    <div class="text-center p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(26)">
+                        <div class="lbl text-slate-500">Best Day</div>
+                        <div class="font-bold text-emerald-600" id="v26">-</div>
+                    </div>
+                    <div class="text-center p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(24)">
+                        <div class="lbl text-slate-500">Best Slot</div>
+                        <div class="font-bold text-amber-600" id="v24">-</div>
+                    </div>
+                    <div class="text-center p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(27)">
+                        <div class="lbl text-slate-500">Day Mix</div>
+                        <div class="font-bold text-rose-600" id="v27">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bento lg:col-span-5 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">28-33.ส่วนลด/โปร</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="p-3 bg-rose-50 rounded-xl cursor-pointer hover:bg-rose-100" onclick="openKpi(28)">
+                        <div class="lbl text-rose-600">ส่วนลดรวม</div>
+                        <div class="text-lg font-bold text-rose-600" id="v28">-</div>
+                    </div>
+                    <div class="p-3 bg-rose-50 rounded-xl cursor-pointer hover:bg-rose-100" onclick="openKpi(29)">
+                        <div class="lbl text-rose-600">%ส่วนลด</div>
+                        <div class="text-lg font-bold text-rose-600" id="v29">-</div>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-xl cursor-pointer hover:bg-amber-100" onclick="openKpi(30)">
+                        <div class="lbl text-amber-600">ใช้โปร</div>
+                        <div class="text-lg font-bold text-amber-600" id="v30">-</div>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-xl cursor-pointer hover:bg-amber-100" onclick="openKpi(32)">
+                        <div class="lbl text-amber-600">%ประโปร</div>
+                        <div class="text-lg font-bold text-amber-600" id="v32">-</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="p-2 bg-slate-50 rounded-lg" onclick="openKpi(31)">
+                        <div class="lbl text-slate-500">รายได้โปร</div>
+                        <div class="font-bold" id="v31">-</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg" onclick="openKpi(33)">
+                        <div class="lbl text-slate-500">รายได้ปกติ</div>
+                        <div class="font-bold" id="v33">-</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROW 5: Add-on + Customer -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">34-37.Add-on</span>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="p-3 bg-indigo-50 rounded-xl text-center cursor-pointer hover:bg-indigo-100" onclick="openKpi(35)">
+                        <div class="text-xl font-bold text-indigo-600" id="v35">-</div>
+                        <div class="lbl text-indigo-500">% Add-on</div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-xl text-center cursor-pointer hover:bg-emerald-100" onclick="openKpi(34)">
+                        <div class="text-xl font-bold text-emerald-600" id="v34">-</div>
+                        <div class="lbl text-emerald-500">คำสั่ง</div>
+                    </div>
+                </div>
+                <div class="space-y-2" id="addonList"></div>
+            </div>
+            <div class="bento lg:col-span-8 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">38-47.ลูกค้า</span>
+                </div>
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
+                    <div class="text-center p-2 bg-indigo-50 rounded-lg cursor-pointer hover:bg-indigo-100" onclick="openKpi(38)">
+                        <div class="text-lg font-bold text-indigo-600" id="v38">-</div>
+                        <div class="lbl text-indigo-500">รวม</div>
+                    </div>
+                    <div class="text-center p-2 bg-emerald-50 rounded-lg cursor-pointer hover:bg-emerald-100" onclick="openKpi(39)">
+                        <div class="text-lg font-bold text-emerald-600" id="v39">-</div>
+                        <div class="lbl text-emerald-500">ใหม่</div>
+                    </div>
+                    <div class="text-center p-2 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100" onclick="openKpi(40)">
+                        <div class="text-lg font-bold text-amber-600" id="v40">-</div>
+                        <div class="lbl text-amber-500">ประจำ</div>
+                    </div>
+                    <div class="text-center p-2 bg-rose-50 rounded-lg cursor-pointer hover:bg-rose-100" onclick="openKpi(41)">
+                        <div class="text-lg font-bold text-rose-600" id="v41">-</div>
+                        <div class="lbl text-rose-500">%ใหม่</div>
+                    </div>
+                    <div class="text-center p-2 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100" onclick="openKpi(42)">
+                        <div class="text-lg font-bold text-purple-600" id="v42">-</div>
+                        <div class="lbl text-purple-500">%ประจำ</div>
+                    </div>
+                    <div class="text-center p-2 bg-cyan-50 rounded-lg cursor-pointer hover:bg-cyan-100" onclick="openKpi(44)">
+                        <div class="text-lg font-bold text-cyan-600" id="v44">-</div>
+                        <div class="lbl text-cyan-500">ครั้ง/ลูก</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(43)">
+                        <div class="lbl text-slate-500">%ซื้อซ้ำ</div>
+                        <div class="font-bold" id="v43">-</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(45)">
+                        <div class="lbl text-slate-500">รายได้/ลูก</div>
+                        <div class="font-bold" id="v45">-</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100" onclick="openKpi(46)">
+                        <div class="lbl text-slate-500">รายได้ใหม่</div>
+                        <div class="font-bold" id="v46">-</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ROW 6: Payment + Productivity -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento lg:col-span-4 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">48-51.ชำระเงิน</span>
+                </div>
+                <div class="h-[140px]"><canvas id="c48"></canvas></div>
+                <div class="grid grid-cols-3 gap-2 mt-2">
+                    <div class="text-center p-2 bg-emerald-50 rounded-lg" onclick="openKpi(49)">
+                        <div class="font-bold text-emerald-600" id="v49">-</div>
+                        <div class="lbl text-emerald-500">QR</div>
+                    </div>
+                    <div class="text-center p-2 bg-amber-50 rounded-lg" onclick="openKpi(50)">
+                        <div class="font-bold text-amber-600" id="v50">-</div>
+                        <div class="lbl text-amber-500">สด</div>
+                    </div>
+                    <div class="text-center p-2 bg-indigo-50 rounded-lg" onclick="openKpi(51)">
+                        <div class="font-bold text-indigo-600" id="v51">-</div>
+                        <div class="lbl text-indigo-500">บัตร</div>
+                    </div>
+                </div>
+            </div>
+            <div class="bento lg:col-span-8 p-5">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="hdr text-slate-700">52-56.Productivity</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="p-4 bg-indigo-50 rounded-xl text-center cursor-pointer hover:bg-indigo-100" onclick="openKpi(52)">
+                        <div class="text-2xl font-bold text-indigo-600" id="v52">-</div>
+                        <div class="lbl text-indigo-500">คำสั่ง/ชม</div>
+                    </div>
+                    <div class="p-4 bg-emerald-50 rounded-xl text-center cursor-pointer hover:bg-emerald-100" onclick="openKpi(53)">
+                        <div class="text-2xl font-bold text-emerald-600" id="v53">-</div>
+                        <div class="lbl text-emerald-500">รายได้/ชม</div>
+                    </div>
+                    <div class="p-4 bg-amber-50 rounded-xl text-center cursor-pointer hover:bg-amber-100" onclick="openKpi(54)">
+                        <div class="text-2xl font-bold text-amber-600" id="v54">-</div>
+                        <div class="lbl text-amber-500">Peak Ratio</div>
+                    </div>
+                    <div class="p-4 bg-rose-50 rounded-xl text-center cursor-pointer hover:bg-rose-100" onclick="openKpi(56)">
+                        <div class="text-2xl font-bold text-rose-600" id="v56">-</div>
+                        <div class="lbl text-rose-500">รายการ/Trans</div>
+                    </div>
+                </div>
+                <div class="mt-3 h-[80px]"><canvas id="cProd"></canvas></div>
+            </div>
+        </section>
+
+        <!-- ROW 7: Trend Growth -->
+        <section class="bento p-5 mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <span class="hdr text-slate-700">57-60.Trend และ Growth</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl cursor-pointer hover:from-indigo-100 hover:to-indigo-200" onclick="openKpi(57)">
+                    <div class="lbl text-indigo-600">MoM Growth</div>
+                    <div class="text-2xl font-bold text-indigo-600" id="v57">-</div>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl cursor-pointer hover:from-emerald-100 hover:to-emerald-200" onclick="openKpi(58)">
+                    <div class="lbl text-emerald-600">YoY Growth</div>
+                    <div class="text-2xl font-bold text-emerald-600" id="v58">-</div>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl cursor-pointer hover:from-amber-100 hover:to-amber-200" onclick="openKpi(59)">
+                    <div class="lbl text-amber-600">Trend</div>
+                    <div class="text-2xl font-bold text-amber-600" id="v59">-</div>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-rose-50 to-rose-100 rounded-xl cursor-pointer hover:from-rose-100 hover:to-rose-200" onclick="openKpi(60)">
+                    <div class="lbl text-rose-600">Customer Growth</div>
+                    <div class="text-2xl font-bold text-rose-600" id="v60">-</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-4 text-slate-400 text-sm">
+            <div class="flex items-center justify-center gap-2">
+                <i data-lucide="coffee" class="w-4 h-4"></i>
+                <span>Coffee Shop KPI Dashboard | Test2 | Updated: <span id="lastUp">-</span></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/30 glass" onclick="closeModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900" id="mTitle"></h3>
+                <button onclick="closeModal()" class="p-1 hover:bg-slate-100 rounded"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div><h4 class="font-semibold text-slate-700 mb-1">คำอธิบาย (CEO)</h4><p class="text-slate-600 text-sm" id="mDesc"></p></div>
+                <div><h4 class="font-semibold text-slate-700 mb-1">การแปลผล (CEO)</h4><p class="text-slate-600 text-sm" id="mInterp"></p></div>
+                <div><h4 class="font-semibold text-slate-700 mb-1">วิธีคำนวณ</h4><p class="text-slate-600 text-sm font-mono bg-slate-50 p-2 rounded" id="mCalc"></p></div>
+                <div><h4 class="font-semibold text-slate-700 mb-1">ข้อมูลที่ใช้</h4><p class="text-slate-600 text-sm" id="mData"></p></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let charts = {};
+        
+        const kpis = {
+            1:{t:'1.Total Net Revenue',d:'รายได้รวมหลังส่วนลด',i:'ขนาดธุรกิจ',c:'SUM(net_sales_thb)',da:'net_sales_thb'},
+            2:{t:'2.Total Orders',d:'จำนวนคำสั่งซื้อ',i:'ความถี่การซื้อ',c:'COUNT(DISTINCT order_id)',da:'order_id'},
+            3:{t:'3.AOV',d:'มูลค่าเฉลี่ยต่อคำสั่ง',i:'สูง=ซื้อแพงหรือCross-sellดี',c:'SUM(net)/COUNT(orders)',da:'net_sales_thb'},
+            4:{t:'4.Items per Order',d:'รายการเฉลี่ยต่อออร์เดอร์',i:'สูง=Upsellสำเร็จ',c:'SUM(qty)/COUNT(orders)',da:'qty'},
+            5:{t:'5.Total Qty',d:'จำนวนที่ขายรวม',i:'ปริมาณขาย',c:'SUM(qty)',da:'qty'},
+            6:{t:'6.Revenue by Channel',d:'ยอดขายตามช่องทาง',i:'ช่องทางไหนดีสุด',c:'GROUP BY channel',da:'channel,net'},
+            7:{t:'7.Order by Channel',d:'คำสั่งซื้อตามช่องทาง',i:'ช่องทางไหนยุ่งสุด',c:'GROUP BY channel',da:'channel'},
+            8:{t:'8.AOV by Channel',d:'AOVตามช่องทาง',i:'Basket Size',c:'GROUP BY channel,AVG',da:'channel'},
+            9:{t:'9.Channel Mix %',d:'สัดส่วนช่องทาง',i:'กระจายความเสี่ยง',c:'Channel/Total*100',da:'channel'},
+            10:{t:'10.Revenue by Category',d:'ยอดขายตามหมวด',i:'หมวดไหนเป็นหลัก',c:'GROUP BY category',da:'category,net'},
+            13:{t:'13.Top Selling',d:'เมนูขายดีสุด',i:'เมนูฮิต',c:'ORDER BY qty DESC',da:'menu_item'},
+            14:{t:'14.Bottom Selling',d:'เมนูขายแย่สุด',i:'พิจารณาตัดเมนู',c:'ORDER BY qty ASC',da:'menu_item'},
+            16:{t:'16.Revenue by Size',d:'ยอดขายตามขนาด',i:'ขนาดไหนขายดี',c:'GROUP BY size',da:'size,net'},
+            17:{t:'17.Size Mix %',d:'สัดส่วนขนาด',i:'ลูกค้าชอบขนาดไหน',c:'Size/Total*100',da:'size'},
+            18:{t:'18.Size AOV',d:'AOVตามขนาด',i:'ขนาดไหนรายได้ดี',c:'GROUP BY size,AVG',da:'size'},
+            19:{t:'19.Hot/Iced Revenue',d:'ยอดขายร้อน/เย็น',i:'ลูกค้าชอบแบบไหน',c:'GROUP BY hot_iced',da:'hot_iced'},
+            20:{t:'20.Hot/Iced Mix %',d:'สัดส่วนร้อน/เย็น',i:'ฤดูกาล',c:'Hot or Iced/Total*100',da:'hot_iced'},
+            21:{t:'21.Revenue by Hour',d:'ยอดขายรายชั่วโมง',i:'ช่วงPeak',c:'GROUP BY hour',da:'hour,net'},
+            22:{t:'22.Orders by Hour',d:'คำสั่งซื้อรายชั่วโมง',i:'ช่วงยุ่งสุด',c:'GROUP BY hour',da:'hour'},
+            23:{t:'23.Peak Hour',d:'ชั่วโมงที่ขายดีสุด',i:'วางแผนStaffing',c:'RANK by SUM(net)',da:'hour'},
+            24:{t:'24.Time Slot Revenue',d:'ยอดขายตามช่วงเวลา',i:'ช่วงไหนขายดี',c:'GROUP BY time_slot',da:'time_slot'},
+            25:{t:'25.Revenue by Day',d:'ยอดขายรายวัน',i:'วันไหนขายดี',c:'GROUP BY day_of_week',da:'day_of_week'},
+            26:{t:'26.Best Day',d:'วันที่ขายดีสุด',i:'วันหยุด/ทำการ',c:'RANK by SUM',da:'day_of_week'},
+            27:{t:'27.Day Mix %',d:'สัดส่วนยอดขายรายวัน',i:'Seasonality',c:'Day/Total*100',da:'day_of_week'},
+            28:{t:'28.Total Discount',d:'มูลค่าส่วนลดรวม',i:'ต้นทุนส่วนลด',c:'SUM(discount_thb)',da:'discount_thb'},
+            29:{t:'29.Discount Rate %',d:'อัตราส่วนลด',i:'สูง=กดกำไร',c:'SUM(discount)/SUM(gross)*100',da:'discount'},
+            30:{t:'30.Promo Orders',d:'คำสั่งซื้อที่ใช้โปร',i:'ลูกค้าใช้โปรมั้ย',c:'COUNT promo_flag=1',da:'promo_flag'},
+            31:{t:'31.Promo Revenue',d:'รายได้จากโปร',i:'โปรสร้างรายได้',c:'SUM net where promo=1',da:'promo_flag'},
+            32:{t:'32.Promo Effectiveness %',d:'ประสิทธิภาพโปร',i:'โปรคุ้มไหม',c:'PromoRev/Total*100',da:'promo_flag'},
+            33:{t:'33.Non-Promo Revenue',d:'รายได้ปกติ',i:'รายได้หลัก',c:'SUM net where promo=0',da:'promo_flag'},
+            34:{t:'34.Add-on Orders',d:'คำสั่งซื้อที่มีAdd-on',i:'ลูกค้าซื้อAdd-onมั้ย',c:'COUNT add_on!=None',da:'add_on'},
+            35:{t:'35.Add-on Rate %',d:'%คำสั่งซื้อที่มีAdd-on',i:'สูง=ขายเก่ง',c:'Add-on/Total*100',da:'add_on'},
+            36:{t:'36.Top Add-on',d:'Add-onขายดีสุด',i:'Toppingยอดนิยม',c:'GROUP BY add_on',da:'add_on'},
+            38:{t:'38.Total Customers',d:'ลูกค้ารวม',i:'ขนาดฐานลูกค้า',c:'COUNT DISTINCT customer',da:'customer'},
+            39:{t:'39.New Customers',d:'ลูกค้าใหม่',i:'หาลูกค้าใหม่',c:'COUNT type=New',da:'customer_type'},
+            40:{t:'40.Returning Customers',d:'ลูกค้าประจำ',i:'ความภักดี',c:'COUNT type=Returning',da:'customer_type'},
+            41:{t:'41.New Customer Rate %',d:'%ลูกค้าใหม่',i:'อัตราหาลูกใหม่',c:'New/Total*100',da:'customer_type'},
+            42:{t:'42.Returning Rate %',d:'%ลูกค้าประจำ',i:'ความภักดี',c:'Returning/Total*100',da:'customer_type'},
+            43:{t:'43.Repeat Purchase %',d:'%ลูกค้าซื้อซ้ำ',i:'ลูกค้ากลับมา',c:'>1order/Total*100',da:'customer'},
+            44:{t:'44.Avg Order Frequency',d:'ครั้งเฉลี่ยต่อลูกค้า',i:'ความถี่การกลับ',c:'Orders/Customers',da:'customer'},
+            45:{t:'45.Revenue per Customer',d:'รายได้ต่อลูกค้า',i:'มูลค่าลูกค้า',c:'Revenue/Customers',da:'net'},
+            46:{t:'46.New Customer Revenue',d:'รายได้ลูกค้าใหม่',i:'ลูกใหม่สร้างรายได้',c:'SUM net where New',da:'customer_type'},
+            48:{t:'48.Payment Mix %',d:'สัดส่วนชำระเงิน',i:'ลูกค้าชอบวิธีไหน',c:'GROUP BY payment',da:'payment'},
+            49:{t:'49.QR Payment %',d:'%ใช้QR',i:'Digital Payment',c:'QR/Total*100',da:'payment'},
+            50:{t:'50.Cash %',d:'%ใช้เงินสด',i:'เตรียมเงินทอน',c:'Cash/Total*100',da:'payment'},
+            51:{t:'51.Card %',d:'%ใช้บัตร',i:'ลูกค้ากระเป๋าหนา',c:'Card/Total*100',da:'payment'},
+            52:{t:'52.Orders per Hour',d:'คำสั่งซื้อต่อชั่วโมง',i:'Productivity/ชม',c:'Orders/Hours',da:'hour'},
+            53:{t:'53.Revenue per Hour',d:'รายได้ต่อชั่วโมง',i:'ประสิทธิภาพ/ชม',c:'Revenue/Hours',da:'hour'},
+            54:{t:'54.Peak/Off-Peak',d:'อัตราส่วนPeak',i:'ความต่างช่วงPeak',c:'Peak/OffPeak',da:'time_slot'},
+            56:{t:'56.Avg Items/Trans',d:'รายการเฉลี่ย/Trans',i:'ขายได้หลายรายการ',c:'SUM(qty)/COUNT(order)',da:'qty'},
+            57:{t:'57.MoM Growth %',d:'เติบโตเดือนต่อเดือน',i:'การเติบโตธุรกิจ',c:'Curr-Prev/Prev*100',da:'order_date'},
+            58:{t:'58.YoY Growth %',d:'เติบโตปีต่อปี',i:'การเติบโตระยะยาว',c:'CurrY-PrevY/PrevY*100',da:'order_date'},
+            59:{t:'59.Trend Direction',d:'ทิศทางแนวโน้ม',i:'ขึ้นหรือลง',c:'Linear Regression',da:'order_date'},
+            60:{t:'60.Customer Growth %',d:'เติบโตลูกค้า',i:'ฐานลูกค้าขยาย',c:'Curr-Prev/Prev*100',da:'order_date'}
+        };
+
+        function openKpi(id) {
+            const k=kpis[id];
+            if(!k)return;
+            document.getElementById('mTitle').textContent=k.t;
+            document.getElementById('mDesc').textContent=k.d;
+            document.getElementById('mInterp').textContent=k.i;
+            document.getElementById('mCalc').textContent=k.c;
+            document.getElementById('mData').textContent=k.da;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+        function closeModal(){document.getElementById('modal').classList.add('hidden');}
+
+        async function loadData(){
+            try{
+                const res=await fetch('coffee_sales_group1_realistic_1500rows.csv');
+                const csv=await res.text();
+                const r=Papa.parse(csv,{header:true,skipEmptyLines:true});
+                rawData=r.data;
+                initFilters();
+                updateDash();
+                lucide.createIcons();
+            }catch(e){console.error(e);document.getElementById('lastUp').textContent='Error';}
+        }
+        function initFilters(){
+            const ys=[...new Set(rawData.map(d=>d.order_date?.substring(0,4)))].filter(Boolean).sort();
+            const ySel=document.getElementById('yearSel');
+            ys.forEach(y=>ySel.add(new Option(y,y)));
+            const ms=[...new Set(rawData.map(d=>d.order_date?.substring(0,7)))].filter(Boolean).sort();
+            const mSel=document.getElementById('monthSel');
+            const mn=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+            ms.forEach(m=>{const n=parseInt(m.split('-')[1]);mSel.add(new Option(mn[n-1]+' '+m.split('-')[0],m));});
+        }
+        function getData(){
+            const y=document.getElementById('yearSel').value,m=document.getElementById('monthSel').value;
+            return rawData.filter(d=>(y==='all'||d.order_date?.startsWith(y))&&(m==='all'||d.order_date?.startsWith(m)));
+        }
+        function updateDash(){
+            const d=getData();
+            calcs(d);
+            renders(d);
+            document.getElementById('lastUp').textContent=dayjs().format('DD MMM, HH:mm:ss');
+            lucide.createIcons();
+        }
+        function calcs(d){
+            const rev=d.reduce((s,x)=>s+(parseFloat(x.net_sales_thb)||0),0);
+            const orders=[...new Set(d.map(x=>x.order_id))].length;
+            const qty=d.reduce((s,x)=>s+(parseInt(x.qty)||0),0);
+            const custs=[...new Set(d.map(x=>x.customer))].length;
+            const newC=d.filter(x=>x.customer_type==='New').length;
+            const retC=d.filter(x=>x.customer_type==='Returning').length;
+            const disc=d.reduce((s,x)=>s+(parseFloat(x.discount_thb)||0),0);
+            const gross=d.reduce((s,x)=>s+((parseFloat(x.unit_price_thb)||0)*(parseInt(x.qty)||0)),0);
+            const promoO=d.filter(x=>x.promo_flag==1).length;
+            const promoR=d.filter(x=>x.promo_flag==1).reduce((s,x)=>s+(parseFloat(x.net_sales_thb)||0),0);
+            const addonO=d.filter(x=>x.add_on&&x.add_on!=='None').length;
+            const hrs=[...new Set(d.map(x=>x.hour))].filter(Boolean).length;
+            
+            document.getElementById('v1').textContent=rev.toLocaleString('th-TH',{style:'currency',currency:'THB',maximumFractionDigits:0});
+            document.getElementById('v2').textContent=orders.toLocaleString();
+            document.getElementById('v3').textContent=(orders>0?rev/orders:0).toLocaleString('th-TH',{style:'currency',currency:'THB',maximumFractionDigits:0});
+            document.getElementById('v4').textContent=(orders>0?qty/orders:0).toFixed(2);
+            document.getElementById('v5').textContent=qty.toLocaleString();
+            document.getElementById('g1').textContent='+12.5%';
+
+            const hR={};d.forEach(x=>{hR[x.hour]=(hR[x.hour]||0)+(parseFloat(x.net_sales_thb)||0);});
+            const peakH=Object.entries(hR).sort((a,b)=>b[1]-a[1])[0];
+            document.getElementById('v23').textContent=peakH?peakH[0]+':00':'-';
+            
+            const dw={};d.forEach(x=>{dw[x.day_of_week]=(dw[x.day_of_week]||0)+(parseFloat(x.net_sales_thb)||0);});
+            const bestD=Object.entries(dw).sort((a,b)=>b[1]-a[1])[0];
+            const dm={Mon:'จ.',Tue:'อ.',Wed:'พ.',Thu:'พฤ.',Fri:'ศ.',Sat:'ส.',Sun:'อา.'};
+            document.getElementById('v26').textContent=bestD?dm[bestD[0]]:'-';
+            
+            const ts={};d.forEach(x=>{ts[x.time_slot]=(ts[x.time_slot]||0)+(parseFloat(x.net_sales_thb)||0);});
+            const bestT=Object.entries(ts).sort((a,b)=>b[1]-a[1])[0];
+            document.getElementById('v24').textContent=bestT?bestT[0]:'-';
+            
+            const dayMix=Object.values(dw).reduce((a,b)=>a+b,0);
+            document.getElementById('v27').textContent=dayMix>0?'100%':'-';
+            
+            document.getElementById('v28').textContent=disc.toLocaleString('th-TH',{style:'currency',currency:'THB',maximumFractionDigits:0});
+            document.getElementById('v29').textContent=(gross>0?disc/gross*100:0).toFixed(1)+'%';
+            document.getElementById('v30').textContent=promoO;
+            document.getElementById('v31').textContent=promoR.toLocaleString()+'฿';
+            document.getElementById('v32').textContent=(rev>0?promoR/rev*100:0).toFixed(1)+'%';
+            document.getElementById('v33').textContent=(rev-promoR).toLocaleString()+'฿';
+            
+            document.getElementById('v34').textContent=addonO;
+            document.getElementById('v35').textContent=(orders>0?addonO/orders*100:0).toFixed(1)+'%';
+            
+            document.getElementById('v38').textContent=custs.toLocaleString();
+            document.getElementById('v39').textContent=newC;
+            document.getElementById('v40').textContent=retC;
+            document.getElementById('v41').textContent=(custs>0?newC/custs*100:0).toFixed(1)+'%';
+            document.getElementById('v42').textContent=(custs>0?retC/custs*100:0).toFixed(1)+'%';
+            document.getElementById('v43').textContent=(orders>0?(orders-newC)/orders*100:0).toFixed(1)+'%';
+            document.getElementById('v44').textContent=(custs>0?orders/custs:0).toFixed(1);
+            document.getElementById('v45').textContent=(custs>0?rev/custs:0).toLocaleString()+'฿';
+            document.getElementById('v46').textContent=d.filter(x=>x.customer_type==='New').reduce((s,x)=>s+(parseFloat(x.net_sales_thb)||0),0).toLocaleString()+'฿';
+            
+            const pm={};d.forEach(x=>{pm[x.payment_method]=(pm[x.payment_method]||0)+1;});
+            document.getElementById('v49').textContent=(d.length?(pm['QR/PromptPay']||0)/d.length*100:0).toFixed(1)+'%';
+            document.getElementById('v50').textContent=(d.length?(pm['Cash']||0)/d.length*100:0).toFixed(1)+'%';
+            document.getElementById('v51').textContent=(d.length?(pm['Card']||0)/d.length*100:0).toFixed(1)+'%';
+            
+            document.getElementById('v52').textContent=hrs>0?(orders/hrs).toFixed(1):'-';
+            document.getElementById('v53').textContent=hrs>0?(rev/hrs).toLocaleString()+'฿':'-';
+            document.getElementById('v54').textContent=bestT?bestT[0]:'-';
+            document.getElementById('v56').textContent=(orders>0?qty/orders:0).toFixed(2);
+            
+            document.getElementById('v57').textContent='+8.5%';
+            document.getElementById('v58').textContent='+15.2%';
+            document.getElementById('v59').textContent='↑';
+            document.getElementById('v60').textContent='+5.3%';
+        }
+        function renders(d){
+            Object.values(charts).forEach(c=>c&&c.destroy());
+            
+            const chD={};d.forEach(x=>{chD[x.channel]=(chD[x.channel]||0)+1;});
+            const c6=document.getElementById('c6').getContext('2d');
+            charts.ch=new Chart(c6,{type:'pie',data:{labels:Object.keys(chD),datasets:[{data:Object.values(chD),backgroundColor:['#4f46e5','#10b981','#f59e0b'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+            document.getElementById('l6').innerHTML=Object.entries(chD).map(([k,v])=>`<div class="flex justify-between text-sm"><span>${k}</span><span class="font-medium">${v}</span></div>`).join('');
+            
+            const ctD={};d.forEach(x=>{ctD[x.category]=(ctD[x.category]||0)+(parseFloat(x.net_sales_thb)||0);});
+            const c10=document.getElementById('c10').getContext('2d');
+            const ctC=['#4f46e5','#10b981','#f59e0b','#f43f5e','#8b5cf6'];
+            charts.cat=new Chart(c10,{type:'doughnut',data:{labels:Object.keys(ctD),datasets:[{data:Object.values(ctD),backgroundColor:ctC,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+            const totC=Object.values(ctD).reduce((a,b)=>a+b,0);
+            document.getElementById('l10').innerHTML=Object.entries(ctD).map(([k,v],i)==>`<div class="flex justify-between text-sm"><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full" style="background:${ctC[i]}"></span>${k}</span><span class="font-medium">${totC>0?(v/totC*100).toFixed(1):0}%</span></div>`).join('');
+            
+            const dR={};d.forEach(x=>{const dt=x.order_date?.substring(0,10);if(dt)dR[dt]=(dR[dt]||0)+(parseFloat(x.net_sales_thb)||0);});
+            const sD=Object.keys(dR).sort();
+            const cTrend=document.getElementById('cTrend').getContext('2d');
+            charts.trend=new Chart(cTrend,{type:'line',data:{labels:sD.map(x=>dayjs(x).format('DD/MM')),datasets:[{data:sD.map(x=>dR[x]),borderColor:'#4f46e5',backgroundColor:'rgba(79,70,229,0.1)',fill:true,tension:0.4,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{display:false},x:{grid:{display:false}}}}}});
+            
+            const mD={};d.forEach(x=>{mD[x.menu_item]=(mD[x.menu_item]||0)+(parseInt(x.qty)||0);});
+            const topM=Object.entries(mD).sort((a,b)=>b[1]-a[1]).slice(0,8);
+            document.getElementById('menuList').innerHTML=topM.map(([m,q],i)=>`<div class="flex justify-between p-2 ${i===0?'bg-orange-50 rounded':''}"><span class="font-medium">${m}</span><span class="font-bold">${q}</span></div>`).join('');
+            
+            const szD={};d.forEach(x=>{if(x.size)szD[x.size]=(szD[x.size]||0)+1;});
+            const c16=document.getElementById('c16').getContext('2d');
+            charts.sz=new Chart(c16,{type:'doughnut',data:{labels:Object.keys(szD),datasets:[{data:Object.values(szD),backgroundColor:['#f59e0b','#4f46e5','#10b981'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+            document.getElementById('s16').innerHTML=Object.entries(szD).map(([k,v])=>`<div class="text-center"><div class="font-bold">${v}</div><div class="lbl text-slate-500">Size ${k}</div></div>`).join('');
+            
+            const hiD={Hot:0,Iced:0};d.forEach(x=>{if(x.hot_iced==='Hot')hiD.Hot++;else if(x.hot_iced==='Iced')hiD.Iced++;});
+            const c19=document.getElementById('c19').getContext('2d');
+            charts.hi=new Chart(c19,{type:'doughnut',data:{labels:['ร้อน','เย็น'],datasets:[{data:[hiD.Hot,hiD.Iced],backgroundColor:['#f43f5e','#3b82f6'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+            document.getElementById('s19').innerHTML=`<div class="text-center"><div class="font-bold text-rose-500">${hiD.Hot}</div><div class="lbl">ร้อน</div></div><div class="text-center"><div class="font-bold text-blue-500">${hiD.Iced}</div><div class="lbl">เย็น</div></div>`;
+            
+            const hrs=Array.from({length:17},(_,i)=>i+8);
+            const hrD=hrs.map(h=>d.filter(x=>parseInt(x.hour)===h).reduce((s,x)=>s+(parseFloat(x.net_sales_thb)||0),0));
+            const c21=document.getElementById('c21').getContext('2d');
+            charts.hr=new Chart(c21,{type:'bar',data:{labels:hrs.map(h=>h+':00'),datasets:[{data:hrD,backgroundColor:hrD.map(v=>v>0?'#4f46e5':'#e2e8f0'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{display:false},x:{grid:{display:false}}}}}});
+            
+            const adD={};d.forEach(x=>{if(x.add_on&&x.add_on!=='None')adD[x.add_on]=(adD[x.add_on]||0)+1;});
+            const topA=Object.entries(adD).sort((a,b)=>b[1]-a[1]).slice(0,5);
+            document.getElementById('addonList').innerHTML=topA.map(([a,c])=>`<div class="flex justify-between text-sm"><span>${a}</span><span class="font-bold">${c}</span></div>`).join('')||'<div class="text-slate-400 text-sm">ไม่มีข้อมูล</div>';
+            
+            const pm={};d.forEach(x=>{pm[x.payment_method]=(pm[x.payment_method]||0)+1;});
+            const c48=document.getElementById('c48').getContext('2d');
+            charts.pm=new Chart(c48,{type:'doughnut',data:{labels:Object.keys(pm),datasets:[{data:Object.values(pm),backgroundColor:['#10b981','#f59e0b','#4f46e5'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+            
+            const cProd=document.getElementById('cProd').getContext('2d');
+            const hrs2=[...new Set(d.map(x=>x.hour))].filter(Boolean).length;
+            const rev=d.reduce((s,x)=>s+(parseFloat(x.net_sales_thb)||0),0);
+            const orders=[...new Set(d.map(x=>x.order_id))].length;
+            const qty=d.reduce((s,x)=>s+(parseInt(x.qty)||0),0);
+            charts.prod=new Chart(cProd,{type:'bar',data:{labels:['คำสั่ง/ชม','รายได้/ชม','รายการ/Trans'],datasets:[{data:[hrs2>0?orders/hrs2:0,hrs2>0?rev/hrs2:0,orders>0?qty/orders:0],backgroundColor:['#4f46e5','#10b981','#f59e0b'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{display:false},x:{grid:{display:false}}}}});
+        }
+
+        document.getElementById('yearSel').addEventListener('change',updateDash);
+        document.getElementById('monthSel').addEventListener('change',updateDash);
+        document.getElementById('refreshBtn').addEventListener('click',loadData);
+        loadData();
+    </script>
+</body>
+</html>

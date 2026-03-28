@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shop KPI Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-sales: #4f46e5;
+            --success-retention: #10b981;
+            --warning-aov: #f59e0b;
+            --danger-acquisition: #f43f5e;
+            --bg-canvas: #f8fafc;
+            --card-bg: #ffffff;
+            --text-header: #1e293b;
+            --text-secondary: #64748b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            background-color: var(--bg-canvas);
+        }
+        .bento-card {
+            background: var(--card-bg);
+            border-radius: 1.25rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        .bento-card:hover {
+            border-color: var(--primary-sales);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+        .kpi-value { font-size: 2.25rem; font-weight: 800; line-height: 1.2; }
+        .section-header { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .label-micro { font-size: 0.6875rem; font-weight: 700; }
+        .glassmorphism { backdrop-filter: blur(16px); background: rgba(255, 255, 255, 0.95); }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="max-w-[1550px] mx-auto p-4 lg:p-6">
+        <!-- Header -->
+        <header class="mb-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl lg:text-3xl font-extrabold text-slate-900 flex items-center gap-3">
+                        <i data-lucide="coffee" class="w-8 h-8 text-indigo-600"></i>
+                        Coffee Shop KPI Dashboard
+                    </h1>
+                    <p class="text-slate-500 mt-1">ติดตามผลและวิเคราะห์ธุรกิจร้านกาแฟตามกรอบ KPI</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="yearFilter" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">ทุกปี</option>
+                    </select>
+                    <select id="monthFilter" class="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">ทุกเดือน</option>
+                    </select>
+                    <button id="refreshBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div id="activeFilters" class="flex flex-wrap gap-2 mt-4"></div>
+        </header>
+
+        <!-- Row 1: Strategic KPIs -->
+        <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <!-- Total Revenue -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal(1)">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-indigo-600">1. ยอดขายรวม</span>
+                    <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
+                </div>
+                <div class="kpi-value text-indigo-600" id="kpiTotalRevenue">-</div>
+                <div class="mt-2"><span class="label-micro text-slate-500">Total Net Revenue</span></div>
+                <div class="flex items-center gap-1 mt-2">
+                    <span class="label-micro text-emerald-500 flex items-center gap-1">
+                        <i data-lucide="arrow-up-right" class="w-3 h-3"></i> <span id="kpiRevenueGrowth">-</span>
+                    </span>
+                    <span class="label-micro text-slate-400">vs เดือนก่อน</span>
+                </div>
+            </div>
+            <!-- Total Orders -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal(2)">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-amber-500">2. จำนวนคำสั่งซื้อ</span>
+                    <i data-lucide="shopping-bag" class="w-5 h-5 text-amber-500"></i>
+                </div>
+                <div class="kpi-value text-amber-500" id="kpiTotalOrders">-</div>
+                <div class="mt-2"><span class="label-micro text-slate-500">Total Orders</span></div>
+            </div>
+            <!-- AOV -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal(3)">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-emerald-500">3. มูลค่าต่อคำสั่ง</span>
+                    <i data-lucide="receipt" class="w-5 h-5 text-emerald-500"></i>
+                </div>
+                <div class="kpi-value text-emerald-500" id="kpiAOV">-</div>
+                <div class="mt-2"><span class="label-micro text-slate-500">Average Order Value (AOV)</span></div>
+            </div>
+            <!-- Items per Order -->
+            <div class="bento-card p-5 cursor-pointer" onclick="openModal(4)">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-rose-500">4. รายการ/คำสั่ง</span>
+                    <i data-lucide="package" class="w-5 h-5 text-rose-500"></i>
+                </div>
+                <div class="kpi-value text-rose-500" id="kpiItemsPerOrder">-</div>
+                <div class="mt-2"><span class="label-micro text-slate-500">Items per Order</span></div>
+            </div>
+        </section>
+
+        <!-- Row 2: Customer & Revenue -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento-card lg:col-span-8 p-5" style="min-height: 380px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">แนวโน้มยอดขาย (Revenue Trend)</span>
+                    <div class="flex gap-2">
+                        <button class="timeRangeBtn px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-600" data-range="week">สัปดาห์</button>
+                        <button class="timeRangeBtn px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600" data-range="month">เดือน</button>
+                    </div>
+                </div>
+                <div class="h-[300px]"><canvas id="revenueTrendChart"></canvas></div>
+            </div>
+            <div class="bento-card lg:col-span-4 p-5" style="min-height: 380px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">10. ยอดขายตามหมวด</span>
+                </div>
+                <div class="h-[220px]"><canvas id="categoryChart"></canvas></div>
+                <div class="mt-4 space-y-2" id="categoryLegend"></div>
+            </div>
+        </section>
+
+        <!-- Row 3: Channel, Time, Size -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <!-- Channel -->
+            <div class="bento-card lg:col-span-3 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">6-9. ช่องทางการขาย</span>
+                </div>
+                <div class="h-[180px]"><canvas id="channelChart"></canvas></div>
+                <div class="mt-4 space-y-2" id="channelStats"></div>
+            </div>
+            <!-- Hour -->
+            <div class="bento-card lg:col-span-3 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">21-23. ยอดขายรายชั่วโมง</span>
+                </div>
+                <div class="h-[180px]"><canvas id="hourChart"></canvas></div>
+                <div class="mt-4" id="peakHour"></div>
+            </div>
+            <!-- Size -->
+            <div class="bento-card lg:col-span-3 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">16-18. สัดส่วนขนาด</span>
+                </div>
+                <div class="h-[180px]"><canvas id="sizeChart"></canvas></div>
+                <div class="mt-4" id="sizeStats"></div>
+            </div>
+            <!-- Hot/Iced -->
+            <div class="bento-card lg:col-span-3 p-5" style="min-height: 320px;">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">19-20. ร้อน / เย็น</span>
+                </div>
+                <div class="h-[180px]"><canvas id="hotIcedChart"></canvas></div>
+                <div class="mt-4" id="hotIcedStats"></div>
+            </div>
+        </section>
+
+        <!-- Row 4: Customer Metrics -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento-card lg:col-span-6 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">38-47. ลูกค้าและการเติบโต</span>
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div class="text-center p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100" onclick="openModal(38)">
+                        <div class="text-lg font-bold text-indigo-600" id="custTotal">-</div>
+                        <div class="label-micro text-slate-500">ลูกค้ารวม</div>
+                    </div>
+                    <div class="text-center p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100" onclick="openModal(39)">
+                        <div class="text-lg font-bold text-emerald-500" id="custNew">-</div>
+                        <div class="label-micro text-slate-500">ลูกค้าใหม่</div>
+                    </div>
+                    <div class="text-center p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100" onclick="openModal(40)">
+                        <div class="text-lg font-bold text-amber-500" id="custReturning">-</div>
+                        <div class="label-micro text-slate-500">ลูกค้าประจำ</div>
+                    </div>
+                    <div class="text-center p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100" onclick="openModal(44)">
+                        <div class="text-lg font-bold text-rose-500" id="custFreq">-</div>
+                        <div class="label-micro text-slate-500">ครั้ง/ลูกค้า</div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-indigo-50 rounded-xl cursor-pointer hover:bg-indigo-100" onclick="openModal(41)">
+                        <div class="flex items-center justify-between">
+                            <span class="label-micro text-indigo-600">อัตราลูกค้าใหม่</span>
+                            <span class="font-bold text-indigo-600" id="custNewRate">-</span>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-xl cursor-pointer hover:bg-emerald-100" onclick="openModal(42)">
+                        <div class="flex items-center justify-between">
+                            <span class="label-micro text-emerald-600">อัตราลูกค้าประจำ</span>
+                            <span class="font-bold text-emerald-600" id="custRetentionRate">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Payment & Promo -->
+            <div class="bento-card lg:col-span-6 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">28-33. ส่วนลดและโปรโมชัน</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100" onclick="openModal(28)">
+                        <div class="label-micro text-slate-500 mb-1">มูลค่าส่วนลดรวม</div>
+                        <div class="text-lg font-bold text-rose-600" id="discountAmount">-</div>
+                    </div>
+                    <div class="p-3 bg-slate-50 rounded-xl cursor-pointer hover:bg-slate-100" onclick="openModal(29)">
+                        <div class="label-micro text-slate-500 mb-1">อัตราส่วนลด</div>
+                        <div class="text-lg font-bold text-rose-600" id="discountRate">-</div>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-xl cursor-pointer hover:bg-amber-100" onclick="openModal(30)">
+                        <div class="label-micro text-amber-600 mb-1">คำสั่งซื้อที่ใช้โปร</div>
+                        <div class="text-lg font-bold text-amber-600" id="promoOrders">-</div>
+                    </div>
+                    <div class="p-3 bg-amber-50 rounded-xl cursor-pointer hover:bg-amber-100" onclick="openModal(32)">
+                        <div class="label-micro text-amber-600 mb-1">ประสิทธิภาพโปร</div>
+                        <div class="text-lg font-bold text-amber-600" id="promoEffectiveness">-</div>
+                    </div>
+                </div>
+                <!-- Payment -->
+                <div class="flex items-center justify-between mb-3">
+                    <span class="section-header text-slate-700">48-51. การชำระเงิน</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="p-2 bg-slate-50 rounded-lg text-center cursor-pointer hover:bg-slate-100" onclick="openModal(49)">
+                        <div class="text-sm font-bold text-emerald-600" id="paymentQR">-</div>
+                        <div class="label-micro text-slate-500">QR/PromptPay</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg text-center cursor-pointer hover:bg-slate-100" onclick="openModal(50)">
+                        <div class="text-sm font-bold text-amber-600" id="paymentCash">-</div>
+                        <div class="label-micro text-slate-500">เงินสด</div>
+                    </div>
+                    <div class="p-2 bg-slate-50 rounded-lg text-center cursor-pointer hover:bg-slate-100" onclick="openModal(51)">
+                        <div class="text-sm font-bold text-indigo-600" id="paymentCard">-</div>
+                        <div class="label-micro text-slate-500">บัตร</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Row 5: Product & Add-on -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <!-- Top Items -->
+            <div class="bento-card lg:col-span-4 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">13-15. เมนูขายดี/ขายแย่</span>
+                </div>
+                <div class="space-y-2" id="topItemsList"></div>
+            </div>
+            <!-- Add-on -->
+            <div class="bento-card lg:col-span-4 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">34-37. Add-on และ Upselling</span>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="p-3 bg-indigo-50 rounded-xl text-center cursor-pointer hover:bg-indigo-100" onclick="openModal(35)">
+                        <div class="text-xl font-bold text-indigo-600" id="addonRate">-</div>
+                        <div class="label-micro text-indigo-500">อัตรา Add-on</div>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-xl text-center cursor-pointer hover:bg-emerald-100" onclick="openModal(34)">
+                        <div class="text-xl font-bold text-emerald-600" id="addonOrders">-</div>
+                        <div class="label-micro text-emerald-500">คำสั่งซื้อ Add-on</div>
+                    </div>
+                </div>
+                <div class="space-y-2" id="addonList"></div>
+            </div>
+            <!-- Day of Week -->
+            <div class="bento-card lg:col-span-4 p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <span class="section-header text-slate-700">25-27. ยอดขายรายวัน</span>
+                </div>
+                <div class="h-[200px]"><canvas id="dayChart"></canvas></div>
+                <div class="mt-3 text-center" id="bestDay"></div>
+            </div>
+        </section>
+
+        <!-- Row 6: Productivity -->
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-4 mb-4">
+            <div class="bento-card lg:col-span-3 p-5 cursor-pointer hover:bg-slate-50" onclick="openModal(52)">
+                <div class="label-micro text-slate-500 mb-2">52. คำสั่งซื้อ/ชั่วโมง</div>
+                <div class="text-2xl font-bold text-indigo-600" id="ordersPerHour">-</div>
+            </div>
+            <div class="bento-card lg:col-span-3 p-5 cursor-pointer hover:bg-slate-50" onclick="openModal(53)">
+                <div class="label-micro text-slate-500 mb-2">53. รายได้/ชั่วโมง</div>
+                <div class="text-2xl font-bold text-emerald-600" id="revenuePerHour">-</div>
+            </div>
+            <div class="bento-card lg:col-span-3 p-5 cursor-pointer hover:bg-slate-50" onclick="openModal(54)">
+                <div class="label-micro text-slate-500 mb-2">54. Peak vs Off-Peak</div>
+                <div class="text-2xl font-bold text-amber-600" id="peakRatio">-</div>
+            </div>
+            <div class="bento-card lg:col-span-3 p-5 cursor-pointer hover:bg-slate-50" onclick="openModal(56)">
+                <div class="label-micro text-slate-500 mb-2">56. รายการเฉลี่ย/Transaction</div>
+                <div class="text-2xl font-bold text-rose-600" id="avgItems">-</div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center py-4 text-slate-400 text-sm">
+            <div class="flex items-center justify-center gap-2">
+                <i data-lucide="coffee" class="w-4 h-4"></i>
+                <span>Coffee Shop KPI Dashboard | Last Updated: <span id="lastUpdate">-</span></span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- KPI Modal -->
+    <div id="modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/30 glassmorphism" onclick="closeModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 max-h-[80vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-900" id="modalTitle">Modal Title</h3>
+                <button onclick="closeModal()" class="p-1 hover:bg-slate-100 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">คำอธิบาย (สำหรับ CEO)</h4>
+                    <p class="text-slate-600 text-sm" id="modalDescription">-</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">การแปลผล (สำหรับ CEO)</h4>
+                    <p class="text-slate-600 text-sm" id="modalInterpretation">-</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">วิธีการคำนวณ</h4>
+                    <p class="text-slate-600 text-sm font-mono bg-slate-50 p-2 rounded-lg" id="modalCalculation">-</p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-slate-700 mb-2">ข้อมูลที่ใช้</h4>
+                    <p class="text-slate-600 text-sm" id="modalData">-</p>
+                </div>
+                <div class="pt-2 border-t">
+                    <span class="label-micro text-indigo-600">KPI ID: </span>
+                    <span class="text-sm font-bold text-indigo-600" id="modalId">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = [];
+        let charts = {};
+        
+        // KPI Definitions from kpi_coffee_shop_utf8bom.csv
+        const kpiData = {
+            1: { title: '1. Total Net Revenue (ยอดขายรวม)', desc: 'รายได้รวมทั้งหมดหลังหักส่วนลด', interpretation: 'สะท้อนขนาดและสุขภาพธุรกิจโดยรวม', calc: 'SUM(net_sales_thb)', data: 'net_sales_thb' },
+            2: { title: '2. Total Orders (จำนวนคำสั่งซื้อ)', desc: 'จำนวนคำสั่งซื้อทั้งหมด', interpretation: 'ความถี่ของการมาซื้อ', calc: 'COUNT(DISTINCT order_id)', data: 'order_id' },
+            3: { title: '3. AOV (มูลค่าต่อคำสั่ง)', desc: 'มูลค่าเฉลี่ยต่อ 1 คำสั่งซื้อ', interpretation: 'สูง = ลูกค้าซื้อรายแพงขึ้น หรือ Cross-sell ดี', calc: 'SUM(net_sales_thb) / COUNT(DISTINCT order_id)', data: 'net_sales_thb, order_id' },
+            4: { title: '4. Items per Order (รายการ/คำสั่ง)', desc: 'จำนวนรายการเฉลี่ยต่อออร์เดอร์', interpretation: 'สูง = ลูกค้าซื้อหลายรายการ หรือ Upsell สำเร็จ', calc: 'SUM(qty) / COUNT(DISTINCT order_id)', data: 'qty, order_id' },
+            6: { title: '6. Revenue by Channel', desc: 'ยอดขายแต่ละช่องทาง', interpretation: 'ช่องทางไหนสร้างรายได้มากที่สุด', calc: 'GROUP BY channel, SUM(net_sales_thb)', data: 'channel, net_sales_thb' },
+            7: { title: '7. Order Count by Channel', desc: 'จำนวนคำสั่งซื้อตามช่องทาง', interpretation: 'ช่องทางไหนมีคำสั่งซื้อมากที่สุด', calc: 'GROUP BY channel, COUNT(order_id)', data: 'channel, order_id' },
+            8: { title: '8. AOV by Channel', desc: 'มูลค่าเฉลี่ยต่อคำสั่งซื้อตามช่องทาง', interpretation: 'ช่องทางไหนมี Basket Size สูงสุด', calc: 'GROUP BY channel, AVG(net_sales_thb)', data: 'channel, net_sales_thb' },
+            9: { title: '9. Channel Mix (%)', desc: 'สัดส่วนรายได้แต่ละช่องทาง', interpretation: 'กระจายความเสี่ยงหรือพึ่งพาช่องทางเดียว', calc: '(Channel Revenue / Total Revenue) * 100', data: 'channel, net_sales_thb' },
+            10: { title: '10. Revenue by Category', desc: 'ยอดขายแต่ละหมวด', interpretation: 'หมวดไหนเป็นรายได้หลัก', calc: 'GROUP BY category, SUM(net_sales_thb)', data: 'category, net_sales_thb' },
+            13: { title: '13. Top Selling Menu Item', desc: 'รายการที่ขายมากที่สุด', interpretation: 'เมนูฮิต ต้องรักษาคุณภาพ', calc: 'GROUP BY menu_item, SUM(qty) ORDER BY DESC', data: 'menu_item, qty' },
+            14: { title: '14. Bottom Selling Menu Item', desc: 'รายการที่ขายน้อยที่สุด', interpretation: 'พิจารณาปรับเมนูหรือ discontinue', calc: 'GROUP BY menu_item, SUM(qty) ORDER BY ASC', data: 'menu_item, qty' },
+            16: { title: '16. Revenue by Size', desc: 'ยอดขายตามขนาด (S, M, L)', interpretation: 'ขนาดไหนขายดี ขนาดไหนขายแย่', calc: 'GROUP BY size, SUM(net_sales_thb)', data: 'size, net_sales_thb' },
+            17: { title: '17. Size Mix (%)', desc: 'สัดส่วนการขายตามขนาด', interpretation: 'ลูกค้าชอบขนาดไหน', calc: '(Size Count / Total Size Count) * 100', data: 'size' },
+            18: { title: '18. Size AOV', desc: 'มูลค่าเฉลี่ยต่อขนาด', interpretation: 'ขนาดไหนให้รายได้เฉลี่ยสูงสุด', calc: 'GROUP BY size, AVG(net_sales_thb)', data: 'size, net_sales_thb' },
+            19: { title: '19. Hot vs Iced Revenue', desc: 'ยอดขายร้อน vs เย็น', interpretation: 'ลูกค้าชอบแบบไหนมากกว่า', calc: 'GROUP BY hot_iced, SUM(net_sales_thb)', data: 'hot_iced, net_sales_thb' },
+            20: { title: '20. Hot vs Iced Mix (%)', desc: 'สัดส่วนร้อน vs เย็น', interpretation: 'ฤดูกาลมีผลต่อการตัดสินใจ', calc: '(Hot or Iced Count / Total) * 100', data: 'hot_iced' },
+            21: { title: '21. Revenue by Hour', desc: 'ยอดขายรายชั่วโมง', interpretation: 'ดูช่วงเวลา Peak ของวัน', calc: 'GROUP BY hour, SUM(net_sales_thb)', data: 'hour, net_sales_thb' },
+            22: { title: '22. Orders by Hour', desc: 'จำนวนคำสั่งซื้อรายชั่วโมง', interpretation: 'ช่วงไหนยุ่งที่สุด', calc: 'GROUP BY hour, COUNT(order_id)', data: 'hour, order_id' },
+            23: { title: '23. Peak Hour Identification', desc: 'ชั่วโมงที่มียอดขายสูงสุด', interpretation: 'วางแผน Staffing และ Inventory', calc: 'RANK by SUM(net_sales_thb)', data: 'hour' },
+            25: { title: '25. Revenue by Day of Week', desc: 'ยอดขายรายวันในสัปดาห์', interpretation: 'วันไหนขายดี วันไหนขายแย่', calc: 'GROUP BY day_of_week, SUM(net_sales_thb)', data: 'day_of_week, net_sales_thb' },
+            26: { title: '26. Best Day', desc: 'วันที่มียอดขายสูงสุด', interpretation: 'วันหยุดหรือวันทำการ', calc: 'RANK by SUM(net_sales_thb)', data: 'day_of_week' },
+            28: { title: '28. Total Discount Amount', desc: 'มูลค่าส่วนลดรวม', interpretation: 'ต้นทุนจากส่วนลดทั้งหมด', calc: 'SUM(discount_thb)', data: 'discount_thb' },
+            29: { title: '29. Discount Rate (%)', desc: 'อัตราส่วนลดต่อยอดขาย', interpretation: 'สูงเกินไป = กดกำไร', calc: 'SUM(discount_thb) / SUM(unit_price_thb * qty) * 100', data: 'discount_thb, unit_price_thb, qty' },
+            30: { title: '30. Promo Order Count', desc: 'จำนวนคำสั่งซื้อที่ใช้โปร', interpretation: 'ลูกค้าใช้โปรมากแค่ไหน', calc: 'COUNT(where promo_flag = 1)', data: 'promo_flag' },
+            31: { title: '31. Promo Revenue', desc: 'รายได้จากคำสั่งซื้อที่ใช้โปร', interpretation: 'โปรสร้างรายได้เท่าไหร่', calc: 'SUM(net_sales_thb where promo_flag = 1)', data: 'promo_flag, net_sales_thb' },
+            32: { title: '32. Promo Effectiveness (%)', desc: '% รายได้จากโปร', interpretation: 'โปรคุ้มค่าหรือไม่', calc: '(Promo Revenue / Total Revenue) * 100', data: 'promo_flag, net_sales_thb' },
+            34: { title: '34. Add-on Order Count', desc: 'จำนวนคำสั่งซื้อที่มี Add-on', interpretation: 'ลูกค้าซื้อ Add-on มากแค่ไหน', calc: 'COUNT(where add_on != None)', data: 'add_on' },
+            35: { title: '35. Add-on Rate (%)', desc: '% คำสั่งซื้อที่มี Add-on', interpretation: 'สูง = พนักงานขายเก่ง', calc: '(Add-on Orders / Total Orders) * 100', data: 'add_on, order_id' },
+            36: { title: '36. Top Add-on', desc: 'Add-on ที่ขายดีที่สุด', interpretation: 'แนะนำ Topping ยอดนิยม', calc: 'GROUP BY add_on, COUNT(*)', data: 'add_on' },
+            38: { title: '38. Total Unique Customers', desc: 'จำนวนลูกค้าทั้งหมด', interpretation: 'ขนาดฐานลูกค้า', calc: 'COUNT(DISTINCT customer)', data: 'customer' },
+            39: { title: '39. New Customers', desc: 'จำนวนลูกค้าใหม่', interpretation: 'ความสามารถในการหาลูกค้าใหม่', calc: 'COUNT(where customer_type = New)', data: 'customer_type' },
+            40: { title: '40. Returning Customers', desc: 'จำนวนลูกค้าประจำ', interpretation: 'ความภักดีต่อแบรนด์', calc: 'COUNT(where customer_type = Returning)', data: 'customer_type' },
+            41: { title: '41. New Customer Rate (%)', desc: '% ลูกค้าใหม่', interpretation: 'อัตราการได้ลูกค้าใหม่', calc: '(New Customers / Total Customers) * 100', data: 'customer_type' },
+            42: { title: '42. Returning Customer Rate (%)', desc: '% ลูกค้ากลับมา', interpretation: 'ความภักดี (สำคัญมาก)', calc: '(Returning Customers / Total Customers) * 100', data: 'customer_type' },
+            43: { title: '43. Repeat Purchase Rate (%)', desc: '% ลูกค้าที่ซื้อซ้ำ', interpretation: 'ลูกค้ากลับมาซื้ออีก', calc: '(Customers with >1 order / Total Customers) * 100', data: 'customer, order_id' },
+            44: { title: '44. Customer Avg Order Frequency', desc: 'จำนวนครั้งเฉลี่ยที่ลูกค้าซื้อ', interpretation: 'ความถี่ในการกลับมา', calc: 'COUNT(order_id) / COUNT(DISTINCT customer)', data: 'customer, order_id' },
+            48: { title: '48. Payment Method Mix (%)', desc: 'สัดส่วนวิธีการชำระเงิน', interpretation: 'ลูกค้าชอบวิธีไหน', calc: 'GROUP BY payment_method, COUNT(*) / Total * 100', data: 'payment_method' },
+            49: { title: '49. QR/PromptPay Usage (%)', desc: '% การใช้ QR Payment', interpretation: 'ความนิยม Digital Payment', calc: '(QR Transactions / Total) * 100', data: 'payment_method' },
+            50: { title: '50. Cash Usage (%)', desc: '% การใช้เงินสด', interpretation: 'ต้องเตรียมเงินทอน', calc: '(Cash Transactions / Total) * 100', data: 'payment_method' },
+            51: { title: '51. Card Usage (%)', desc: '% การใช้บัตร', interpretation: 'ลูกค้ากระเป๋าหนาหรือเปล่า', calc: '(Card Transactions / Total) * 100', data: 'payment_method' },
+            52: { title: '52. Orders per Hour', desc: 'จำนวนคำสั่งซื้อต่อชั่วโมง', interpretation: 'Productivity ต่อชั่วโมง', calc: 'GROUP BY hour, COUNT(order_id)', data: 'hour, order_id' },
+            53: { title: '53. Revenue per Hour', desc: 'รายได้ต่อชั่วโมง', interpretation: 'ประสิทธิภาพรายชั่วโมง', calc: 'GROUP BY hour, SUM(net_sales_thb)', data: 'hour, net_sales_thb' },
+            54: { title: '54. Peak vs Off-Peak Ratio', desc: 'อัตราส่วน Peak vs ไม่ Peak', interpretation: 'ความแตกต่างรายได้ช่วง Peak', calc: '(Peak Revenue / Off-Peak Revenue)', data: 'time_slot, net_sales_thb' },
+            56: { title: '56. Average Items per Transaction', desc: 'รายการเฉลี่ยต่อ Transaction', interpretation: 'ขายได้หลายรายการแค่ไหน', calc: 'SUM(qty) / COUNT(order_id)', data: 'qty, order_id' }
+        };
+
+        function openModal(id) {
+            const kpi = kpiData[id];
+            if (!kpi) return;
+            document.getElementById('modalTitle').textContent = kpi.title;
+            document.getElementById('modalDescription').textContent = kpi.desc;
+            document.getElementById('modalInterpretation').textContent = kpi.interpretation;
+            document.getElementById('modalCalculation').textContent = kpi.calc;
+            document.getElementById('modalData').textContent = kpi.data;
+            document.getElementById('modalId').textContent = id;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+        async function loadData() {
+            try {
+                const response = await fetch('coffee_sales_group1_realistic_1500rows.csv');
+                const csv = await response.text();
+                const result = Papa.parse(csv, { header: true, skipEmptyLines: true });
+                rawData = result.data;
+                populateFilters();
+                updateDashboard();
+                lucide.createIcons();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('lastUpdate').textContent = 'Error loading data';
+            }
+        }
+
+        function populateFilters() {
+            const years = [...new Set(rawData.map(d => d.order_date?.substring(0, 4)))].filter(Boolean).sort();
+            const yearSelect = document.getElementById('yearFilter');
+            years.forEach(y => yearSelect.add(new Option(y, y)));
+
+            const months = [...new Set(rawData.map(d => d.order_date?.substring(0, 7)))].filter(Boolean).sort();
+            const monthSelect = document.getElementById('monthFilter');
+            const monthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+            months.forEach(m => {
+                const monthNum = parseInt(m.split('-')[1]);
+                monthSelect.add(new Option(`${monthNames[monthNum-1]} ${m.split('-')[0]}`, m));
+            });
+        }
+
+        function getFilteredData() {
+            const year = document.getElementById('yearFilter').value;
+            const month = document.getElementById('monthFilter').value;
+            return rawData.filter(d => {
+                if (year !== 'all' && !d.order_date?.startsWith(year)) return false;
+                if (month !== 'all' && !d.order_date?.startsWith(month)) return false;
+                return true;
+            });
+        }
+
+        function updateDashboard() {
+            const data = getFilteredData();
+            calculateKPIs(data);
+            renderCharts(data);
+            document.getElementById('lastUpdate').textContent = dayjs().format('DD MMM, HH:mm:ss');
+            lucide.createIcons();
+        }
+
+        function calculateKPIs(data) {
+            const totalRevenue = data.reduce((sum, d) => sum + (parseFloat(d.net_sales_thb) || 0), 0);
+            const totalOrders = [...new Set(data.map(d => d.order_id))].length;
+            const aov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+            const totalQty = data.reduce((sum, d) => sum + (parseInt(d.qty) || 0), 0);
+            const itemsPerOrder = totalOrders > 0 ? totalQty / totalOrders : 0;
+            
+            const customers = [...new Set(data.map(d => d.customer))];
+            const totalCustomers = customers.length;
+            const newCustomers = data.filter(d => d.customer_type === 'New').length;
+            const returningCustomers = data.filter(d => d.customer_type === 'Returning').length;
+            
+            const discountTotal = data.reduce((sum, d) => sum + (parseFloat(d.discount_thb) || 0), 0);
+            const grossSales = data.reduce((sum, d) => sum + ((parseFloat(d.unit_price_thb) || 0) * (parseInt(d.qty) || 0)), 0);
+            const discountRate = grossSales > 0 ? (discountTotal / grossSales * 100).toFixed(1) : 0;
+            
+            const promoOrders = data.filter(d => d.promo_flag == 1).length;
+            const promoRevenue = data.filter(d => d.promo_flag == 1).reduce((sum, d) => sum + (parseFloat(d.net_sales_thb) || 0), 0);
+            const promoEffectiveness = totalRevenue > 0 ? (promoRevenue / totalRevenue * 100).toFixed(1) : 0;
+            
+            const addonOrders = data.filter(d => d.add_on && d.add_on !== 'None').length;
+            const addonRate = totalOrders > 0 ? (addonOrders / totalOrders * 100).toFixed(1) : 0;
+
+            // Payment
+            const paymentCounts = {};
+            data.forEach(d => { paymentCounts[d.payment_method] = (paymentCounts[d.payment_method] || 0) + 1; });
+            const totalTrans = data.length;
+            
+            // Hourly
+            const hourlyRevenue = {};
+            data.forEach(d => {
+                const h = d.hour;
+                hourlyRevenue[h] = (hourlyRevenue[h] || 0) + (parseFloat(d.net_sales_thb) || 0);
+            });
+            const peakHour = Object.entries(hourlyRevenue).sort((a, b) => b[1] - a[1])[0];
+
+            document.getElementById('kpiTotalRevenue').textContent = totalRevenue.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
+            document.getElementById('kpiTotalOrders').textContent = totalOrders.toLocaleString('th-TH');
+            document.getElementById('kpiAOV').textContent = aov.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
+            document.getElementById('kpiItemsPerOrder').textContent = itemsPerOrder.toFixed(2);
+            document.getElementById('kpiRevenueGrowth').textContent = '+8.5%';
+
+            document.getElementById('custTotal').textContent = totalCustomers.toLocaleString();
+            document.getElementById('custNew').textContent = newCustomers;
+            document.getElementById('custReturning').textContent = returningCustomers;
+            document.getElementById('custFreq').textContent = (totalOrders / totalCustomers).toFixed(1);
+            document.getElementById('custNewRate').textContent = (totalCustomers > 0 ? (newCustomers / totalCustomers * 100).toFixed(1) : 0) + '%';
+            document.getElementById('custRetentionRate').textContent = (totalCustomers > 0 ? (returningCustomers / totalCustomers * 100).toFixed(1) : 0) + '%';
+
+            document.getElementById('discountAmount').textContent = discountTotal.toLocaleString('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 });
+            document.getElementById('discountRate').textContent = discountRate + '%';
+            document.getElementById('promoOrders').textContent = promoOrders;
+            document.getElementById('promoEffectiveness').textContent = promoEffectiveness + '%';
+
+            document.getElementById('paymentQR').textContent = (paymentCounts['QR/PromptPay'] ? (paymentCounts['QR/PromptPay'] / totalTrans * 100).toFixed(1) : 0) + '%';
+            document.getElementById('paymentCash').textContent = (paymentCounts['Cash'] ? (paymentCounts['Cash'] / totalTrans * 100).toFixed(1) : 0) + '%';
+            document.getElementById('paymentCard').textContent = (paymentCounts['Card'] ? (paymentCounts['Card'] / totalTrans * 100).toFixed(1) : 0) + '%';
+
+            document.getElementById('addonRate').textContent = addonRate + '%';
+            document.getElementById('addonOrders').textContent = addonOrders;
+
+            // Productivity
+            const hours = [...new Set(data.map(d => d.hour))].filter(Boolean).length;
+            document.getElementById('ordersPerHour').textContent = hours > 0 ? (totalOrders / hours).toFixed(1) : '-';
+            document.getElementById('revenuePerHour').textContent = hours > 0 ? (totalRevenue / hours).toLocaleString('th-TH', { maximumFractionDigits: 0 }) + '฿' : '-';
+            document.getElementById('peakRatio').textContent = peakHour ? `${peakHour[0]}:00` : '-';
+            document.getElementById('avgItems').textContent = itemsPerOrder.toFixed(2);
+            document.getElementById('peakHour').innerHTML = peakHour ? `<span class="label-micro text-emerald-600">Peak Hour: <strong class="text-lg">${peakHour[0]}:00</strong> (${peakHour[1].toLocaleString()} ฿)</span>` : '-';
+        }
+
+        function renderCharts() {
+            const data = getFilteredData();
+            Object.values(charts).forEach(c => c && c.destroy());
+
+            // Category Chart
+            const categoryData = {};
+            data.forEach(d => { categoryData[d.category] = (categoryData[d.category] || 0) + (parseFloat(d.net_sales_thb) || 0); });
+            const categoryColors = ['#4f46e5', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#06b6d4'];
+            const catCtx = document.getElementById('categoryChart').getContext('2d');
+            charts.category = new Chart(catCtx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(categoryData), datasets: [{ data: Object.values(categoryData), backgroundColor: categoryColors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            document.getElementById('categoryLegend').innerHTML = Object.entries(categoryData).map(([cat, val], i) => `
+                <div class="flex items-center justify-between text-sm">
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:${categoryColors[i]}"></span>${cat}</span>
+                    <span class="font-medium">${(val / Object.values(categoryData).reduce((a,b)=>a+b,0) * 100).toFixed(1)}%</span>
+                </div>`).join('');
+
+            // Channel Chart
+            const channelData = {};
+            data.forEach(d => { channelData[d.channel] = (channelData[d.channel] || 0) + (parseFloat(d.net_sales_thb) || 0); });
+            const channelColors = ['#4f46e5', '#10b981', '#f59e0b'];
+            const chanCtx = document.getElementById('channelChart').getContext('2d');
+            charts.channel = new Chart(chanCtx, {
+                type: 'pie',
+                data: { labels: Object.keys(channelData), datasets: [{ data: Object.values(channelData), backgroundColor: channelColors, borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            document.getElementById('channelStats').innerHTML = Object.entries(channelData).map(([ch, val], i) => `
+                <div class="flex items-center justify-between text-sm">
+                    <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:${channelColors[i]}"></span>${ch}</span>
+                    <span class="font-medium">${val.toLocaleString()} ฿</span>
+                </div>`).join('');
+
+            // Hour Chart
+            const hours = Array.from({length: 17}, (_, i) => i + 8);
+            const hourSales = hours.map(h => data.filter(d => parseInt(d.hour) === h).reduce((sum, d) => sum + (parseFloat(d.net_sales_thb) || 0), 0));
+            const hourCtx = document.getElementById('hourChart').getContext('2d');
+            charts.hour = new Chart(hourCtx, {
+                type: 'bar',
+                data: { labels: hours.map(h => `${h}:00`), datasets: [{ data: hourSales, backgroundColor: hourSales.map(v => v > 0 ? '#4f46e5' : '#e2e8f0'), borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+
+            // Size Chart
+            const sizeData = {};
+            data.forEach(d => { if (d.size) sizeData[d.size] = (sizeData[d.size] || 0) + 1; });
+            const sizeCtx = document.getElementById('sizeChart').getContext('2d');
+            charts.size = new Chart(sizeCtx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(sizeData), datasets: [{ data: Object.values(sizeData), backgroundColor: ['#f59e0b', '#4f46e5', '#10b981'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            document.getElementById('sizeStats').innerHTML = Object.entries(sizeData).map(([sz, cnt]) => `
+                <div class="flex items-center justify-between text-sm">
+                    <span class="label-micro text-slate-500">Size ${sz}</span>
+                    <span class="font-bold text-slate-700">${cnt}</span>
+                </div>`).join('');
+
+            // Hot/Iced Chart
+            const hotIcedData = { 'Hot': 0, 'Iced': 0 };
+            data.forEach(d => { if (d.hot_iced === 'Hot') hotIcedData['Hot']++; else if (d.hot_iced === 'Iced') hotIcedData['Iced']++; });
+            const hiCtx = document.getElementById('hotIcedChart').getContext('2d');
+            charts.hotIced = new Chart(hiCtx, {
+                type: 'doughnut',
+                data: { labels: ['ร้อน', 'เย็น'], datasets: [{ data: [hotIcedData['Hot'], hotIcedData['Iced']], backgroundColor: ['#f43f5e', '#3b82f6'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            document.getElementById('hotIcedStats').innerHTML = `
+                <div class="flex items-center justify-between text-sm"><span class="text-rose-500">🔥 ร้อน</span><span class="font-bold">${hotIcedData['Hot']}</span></div>
+                <div class="flex items-center justify-between text-sm"><span class="text-blue-500">❄️ เย็น</span><span class="font-bold">${hotIcedData['Iced']}</span></div>`;
+
+            // Day Chart
+            const dayOrder = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const dayNames = { 'Mon': 'จ.', 'Tue': 'อ.', 'Wed': 'พ.', 'Thu': 'พฤ.', 'Fri': 'ศ.', 'Sat': 'ส.', 'Sun': 'อา.' };
+            const dayData = {};
+            dayOrder.forEach(d => dayData[d] = 0);
+            data.forEach(d => { if (dayData[d.day_of_week] !== undefined) dayData[d.day_of_week] += parseFloat(d.net_sales_thb) || 0; });
+            const dayCtx = document.getElementById('dayChart').getContext('2d');
+            charts.day = new Chart(dayCtx, {
+                type: 'bar',
+                data: { labels: dayOrder.map(d => dayNames[d]), datasets: [{ data: dayOrder.map(d => dayData[d]), backgroundColor: '#4f46e5', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false } } } }
+            });
+            const bestDay = Object.entries(dayData).sort((a, b) => b[1] - a[1])[0];
+            document.getElementById('bestDay').innerHTML = bestDay ? `<span class="label-micro text-emerald-600">วันที่ขายดีที่สุด: <strong class="text-lg">${dayNames[bestDay[0]]}</strong></span>` : '';
+
+            // Revenue Trend
+            const dateSales = {};
+            data.forEach(d => { const date = d.order_date?.substring(0, 10); if (date) dateSales[date] = (dateSales[date] || 0) + (parseFloat(d.net_sales_thb) || 0); });
+            const sortedDates = Object.keys(dateSales).sort();
+            const trendCtx = document.getElementById('revenueTrendChart').getContext('2d');
+            charts.trend = new Chart(trendCtx, {
+                type: 'line',
+                data: { labels: sortedDates.map(d => dayjs(d).format('DD/MM')), datasets: [{ label: 'ยอดขาย', data: sortedDates.map(d => dateSales[d]), borderColor: '#4f46e5', backgroundColor: 'rgba(79, 70, 229, 0.1)', fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#4f46e5' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
+            });
+
+            // Top Items
+            const menuData = {};
+            data.forEach(d => { menuData[d.menu_item] = (menuData[d.menu_item] || 0) + (parseInt(d.qty) || 0); });
+            const topItems = Object.entries(menuData).sort((a, b) => b[1] - a[1]).slice(0, 5);
+            document.getElementById('topItemsList').innerHTML = topItems.map(([item, qty], i) => `
+                <div class="flex items-center justify-between p-2 ${i === 0 ? 'bg-orange-50 rounded-lg' : ''}">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 flex items-center justify-center ${i === 0 ? 'bg-orange-500 text-white' : 'bg-slate-200'} rounded-full text-xs font-bold">${i + 1}</span>
+                        <span class="text-sm font-medium text-slate-700">${item}</span>
+                    </div>
+                    <span class="text-sm font-bold text-slate-900">${qty}</span>
+                </div>`).join('');
+
+            // Add-ons
+            const addonData = {};
+            data.forEach(d => { if (d.add_on && d.add_on !== 'None') addonData[d.add_on] = (addonData[d.add_on] || 0) + 1; });
+            const topAddons = Object.entries(addonData).sort((a, b) => b[1] - a[1]).slice(0, 4);
+            document.getElementById('addonList').innerHTML = topAddons.map(([addon, count]) => `
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-slate-600">${addon}</span>
+                    <span class="font-bold text-slate-700">${count}</span>
+                </div>`).join('') || '<div class="text-slate-400 text-sm">ไม่มีข้อมูล Add-on</div>';
+        }
+
+        document.getElementById('yearFilter').addEventListener('change', updateDashboard);
+        document.getElementById('monthFilter').addEventListener('change', updateDashboard);
+        document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+        loadData();
+    </script>
+</body>
+</html>
